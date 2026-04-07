@@ -14,6 +14,19 @@ func IsUniqueViolation(err error) bool {
 	return errors.As(err, &pgErr) && pgErr.Code == "23505"
 }
 
+func ConstraintName(err error) string {
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) {
+		return ""
+	}
+
+	return pgErr.ConstraintName
+}
+
+func IsConstraintViolation(err error, constraintName string) bool {
+	return ConstraintName(err) == constraintName
+}
+
 func RunInTx(ctx context.Context, pool *pgxpool.Pool, fn func(pgx.Tx) error) error {
 	tx, err := pool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {

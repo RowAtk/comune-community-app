@@ -2,10 +2,12 @@ package auth
 
 import (
 	"comune/apps/api/internal/modules/users"
-	"encoding/json"
-	"errors"
+	"comune/apps/api/internal/platform/apperror"
+	"comune/apps/api/internal/platform/httpx"
 	"net/http"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 const sessionCookieName = "comune_session"
@@ -18,77 +20,56 @@ func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
 }
 
-func (h *Handler) Register(mux *http.ServeMux) {
-	mux.HandleFunc("POST /v1/auth/signup", h.handleSignup)
-	mux.HandleFunc("POST /v1/auth/login", h.handleLogin)
-	mux.HandleFunc("GET /v1/auth/me", h.handleMe)
-	mux.HandleFunc("POST /v1/auth/logout", h.handleLogout)
+func (h *Handler) Register(mux *http.ServeMux, logger *zap.Logger, requireAuth httpx.Middleware) {
+	mux.Handle("POST /v1/auth/signup", httpx.Adapt(logger, h.handleSignup))
+	mux.Handle("POST /v1/auth/login", httpx.Adapt(logger, h.handleLogin))
+	mux.Handle("GET /v1/auth/me", httpx.Adapt(logger, httpx.Chain(h.handleMe, requireAuth)))
+	mux.Handle("POST /v1/auth/logout", httpx.Adapt(logger, httpx.Chain(h.handleLogout, requireAuth)))
 }
 
-func (h *Handler) handleSignup(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) handleSignup(w http.ResponseWriter, r *http.Request) error {
 	var input SignupInput
-	if err := decodeJSON(r, &input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON body")
-		return
+	if err := httpx.DecodeJSON(r, &input); err != nil {
+		return apperror.Validation("invalid_json", "invalid JSON body", err)
 	}
 
 	result, err := h.service.Signup(input)
 	if err != nil {
-		status := http.StatusBadRequest
-		if errors.Is(err, ErrEmailTaken) {
-			status = http.StatusConflict
-		}
-
-		writeError(w, status, err.Error())
-		return
+		return err
 	}
 
 	writeSessionCookie(w, result.Session)
-	writeJSON(w, http.StatusCreated, authResponse(result))
+	httpx.WriteJSON(w, http.StatusCreated, authResponse(result))
+	return nil
 }
 
-func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) handleLogin(w http.ResponseWriter, r *http.Request) error {
 	var input LoginInput
-	if err := decodeJSON(r, &input); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON body")
-		return
+	if err := httpx.DecodeJSON(r, &input); err != nil {
+		return apperror.Validation("invalid_json", "invalid JSON body", err)
 	}
 
 	result, err := h.service.Login(input)
 	if err != nil {
-		status := http.StatusUnauthorized
-		if errors.Is(err, ErrMissingCredentials) {
-			status = http.StatusBadRequest
-		}
-		if errors.Is(err, ErrInactiveUser) {
-			status = http.StatusForbidden
-		}
-
-		writeError(w, status, err.Error())
-		return
+		return err
 	}
 
 	writeSessionCookie(w, result.Session)
-	writeJSON(w, http.StatusOK, authResponse(result))
+	httpx.WriteJSON(w, http.StatusOK, authResponse(result))
+	return nil
 }
 
-func (h *Handler) handleMe(w http.ResponseWriter, r *http.Request) {
-	token, err := readSessionToken(r)
-	if err != nil {
-		writeError(w, http.StatusUnauthorized, "not authenticated")
-		return
+func (h *Handler) handleMe(w http.ResponseWriter, r *http.Request) error {
+	result, ok := CurrentAuthResult(r)
+	if !ok {
+		return apperror.Unauthorized("not_authenticated", "not authenticated", nil)
 	}
 
-	result, err := h.service.GetSession(token)
-	if err != nil {
-		writeError(w, http.StatusUnauthorized, "not authenticated")
-		return
-	}
-
-	writeJSON(w, http.StatusOK, authResponse(result))
+	httpx.WriteJSON(w, http.StatusOK, authResponse(result))
+	return nil
 }
 
-func (h *Handler) handleLogout(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) handleLogout(w http.ResponseWriter, r *http.Request) error {
 	token, err := readSessionToken(r)
 	if err == nil {
 		h.service.Logout(token)
@@ -96,15 +77,11 @@ func (h *Handler) handleLogout(w http.ResponseWriter, r *http.Request) {
 
 	clearSessionCookie(w)
 	w.WriteHeader(http.StatusNoContent)
-}
-
-type responseEnvelope struct {
-	Data  any    `json:"data,omitempty"`
-	Error string `json:"error,omitempty"`
+	return nil
 }
 
 type authPayload struct {
-	User        users.User        `json:"user"`
+	User        users.User  `json:"user"`
 	AuthAccount AuthAccount `json:"auth_account"`
 	Session     SessionView `json:"session"`
 }
@@ -114,8 +91,8 @@ type SessionView struct {
 	ExpiresAt time.Time `json:"expires_at"`
 }
 
-func authResponse(result AuthResult) responseEnvelope {
-	return responseEnvelope{
+func authResponse(result AuthResult) httpx.ResponseEnvelope {
+	return httpx.ResponseEnvelope{
 		Data: authPayload{
 			User:        result.User,
 			AuthAccount: result.AuthAccount,
@@ -159,19 +136,4 @@ func clearSessionCookie(w http.ResponseWriter) {
 		MaxAge:   -1,
 		Expires:  time.Unix(0, 0),
 	})
-}
-
-func decodeJSON(r *http.Request, dst any) error {
-	defer r.Body.Close()
-	return json.NewDecoder(r.Body).Decode(dst)
-}
-
-func writeJSON(w http.ResponseWriter, status int, payload responseEnvelope) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(payload)
-}
-
-func writeError(w http.ResponseWriter, status int, message string) {
-	writeJSON(w, status, responseEnvelope{Error: message})
 }

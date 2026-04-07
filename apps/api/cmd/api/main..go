@@ -2,7 +2,10 @@ package main
 
 import (
 	"comune/apps/api/internal/modules/auth"
+	"comune/apps/api/internal/modules/communities"
+	"comune/apps/api/internal/modules/organizations"
 	"comune/apps/api/internal/platform/config"
+	"comune/apps/api/internal/platform/server"
 	"context"
 	"net/http"
 	"time"
@@ -41,20 +44,9 @@ func main() {
 	}
 
 	authService := auth.NewService(dbPool, cfg.SessionSecret, cfg.SessionDuration)
-	authHandler := auth.NewHandler(authService)
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{"status":"ok"}`))
-	})
-	authHandler.Register(mux)
-
-	server := &http.Server{
-		Addr:              cfg.APIAddr,
-		Handler:           logRequests(logger, mux),
-		ReadHeaderTimeout: 5 * time.Second,
-	}
+	organizationService := organizations.NewService(dbPool)
+	communityService := communities.NewService(dbPool)
+	server := server.NewHTTPServer(cfg.APIAddr, logger, authService, organizationService, communityService)
 
 	logger.Info(
 		"api listening",
@@ -75,18 +67,4 @@ func newLogger(cfg config.Config) (*zap.Logger, error) {
 	}
 
 	return zap.NewProduction()
-}
-
-func logRequests(logger *zap.Logger, next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		started := time.Now()
-		next.ServeHTTP(w, r)
-		logger.Info(
-			"http request",
-			zap.String("method", r.Method),
-			zap.String("path", r.URL.Path),
-			zap.String("remote_addr", r.RemoteAddr),
-			zap.Duration("duration", time.Since(started).Round(time.Millisecond)),
-		)
-	})
 }

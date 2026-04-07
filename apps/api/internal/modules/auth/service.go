@@ -2,6 +2,7 @@ package auth
 
 import (
 	"comune/apps/api/internal/modules/users"
+	"comune/apps/api/internal/platform/apperror"
 	"comune/apps/api/internal/platform/db"
 	"context"
 	"crypto/hmac"
@@ -23,14 +24,74 @@ const (
 	PasswordProvider = "password"
 )
 
+var errInvalidSession = errors.New("invalid session")
+
 var (
-	ErrEmailTaken         = errors.New("email is already registered")
-	ErrInvalidCredentials = errors.New("invalid email or password")
-	ErrInactiveUser       = errors.New("user is inactive")
-	ErrPasswordTooShort   = errors.New("password must be at least 8 characters")
-	ErrInvalidSession     = errors.New("invalid session")
-	ErrMissingCredentials = errors.New("email and password are required")
-	ErrProviderNotFound   = errors.New("auth account was not found")
+	ErrMissingCredentials = apperror.Error{
+		Kind:    apperror.KindValidation,
+		Code:    "missing_credentials",
+		Message: "email and password are required",
+	}
+	ErrPasswordTooShort = apperror.Error{
+		Kind:    apperror.KindValidation,
+		Code:    "password_too_short",
+		Message: "password must be at least 8 characters",
+	}
+	ErrEmailTaken = apperror.Error{
+		Kind:    apperror.KindConflict,
+		Code:    "email_taken",
+		Message: "email is already registered",
+	}
+	ErrInvalidCredentials = apperror.Error{
+		Kind:    apperror.KindUnauthorized,
+		Code:    "invalid_credentials",
+		Message: "invalid email or password",
+	}
+	ErrInactiveUser = apperror.Error{
+		Kind:    apperror.KindUnauthorized,
+		Code:    "inactive_user",
+		Message: "user is inactive",
+	}
+	ErrInvalidSession = apperror.Error{
+		Kind:    apperror.KindUnauthorized,
+		Code:    "invalid_session",
+		Message: "not authenticated",
+	}
+	ErrHashPasswordFailed = apperror.Error{
+		Kind:    apperror.KindInternal,
+		Code:    "hash_password_failed",
+		Message: "internal server error",
+	}
+	ErrCreateUserFailed = apperror.Error{
+		Kind:    apperror.KindInternal,
+		Code:    "create_user_failed",
+		Message: "internal server error",
+	}
+	ErrCreateAuthAccountFailed = apperror.Error{
+		Kind:    apperror.KindInternal,
+		Code:    "create_auth_account_failed",
+		Message: "internal server error",
+	}
+	ErrCreateSessionFailed = apperror.Error{
+		Kind:    apperror.KindInternal,
+		Code:    "create_session_failed",
+		Message: "internal server error",
+	}
+	ErrFindUserFailed = apperror.Error{
+		Kind:    apperror.KindInternal,
+		Code:    "find_user_failed",
+		Message: "internal server error",
+	}
+	ErrTouchLastLoginFailed = apperror.Error{
+		Kind:    apperror.KindInternal,
+		Code:    "touch_last_login_failed",
+		Message: "internal server error",
+	}
+	ErrFindSessionUserFailed = apperror.Error{
+		Kind:    apperror.KindInternal,
+		Code:    "find_session_user_failed",
+		Message: "internal server error",
+	}
 )
 
 func NewService(db *pgxpool.Pool, sessionSecret string, sessionDuration time.Duration) *Service {
@@ -47,15 +108,15 @@ func (s *Service) Signup(input SignupInput) (AuthResult, error) {
 
 	switch {
 	case email == "" || input.Password == "":
-		return AuthResult{}, ErrMissingCredentials
+		return AuthResult{}, ErrMissingCredentials.Wrap(nil)
 	case len(input.Password) < 8:
-		return AuthResult{}, ErrPasswordTooShort
+		return AuthResult{}, ErrPasswordTooShort.Wrap(nil)
 	}
 
 	now := time.Now().UTC()
 	passwordHash, err := hashPassword(input.Password)
 	if err != nil {
-		return AuthResult{}, err
+		return AuthResult{}, ErrHashPasswordFailed.Wrap(fmt.Errorf("hash password: %w", err))
 	}
 
 	ctx := context.Background()
@@ -73,9 +134,9 @@ func (s *Service) Signup(input SignupInput) (AuthResult, error) {
 		})
 		if err != nil {
 			if errors.Is(err, users.ErrEmailTaken) {
-				return fmt.Errorf("create user: %w", ErrEmailTaken)
+				return ErrEmailTaken.Wrap(fmt.Errorf("create user: %w", err))
 			}
-			return fmt.Errorf("create user: %w", err)
+			return ErrCreateUserFailed.Wrap(fmt.Errorf("create user: %w", err))
 		}
 
 		authAccount, err = insertAuthAccount(ctx, tx, createAuthAccountParams{
@@ -88,9 +149,9 @@ func (s *Service) Signup(input SignupInput) (AuthResult, error) {
 		})
 		if err != nil {
 			if db.IsUniqueViolation(err) {
-				return ErrEmailTaken
+				return ErrEmailTaken.Wrap(fmt.Errorf("create auth account: %w", err))
 			}
-			return err
+			return ErrCreateAuthAccountFailed.Wrap(fmt.Errorf("create auth account: %w", err))
 		}
 
 		return nil
@@ -101,7 +162,7 @@ func (s *Service) Signup(input SignupInput) (AuthResult, error) {
 
 	session, err := s.newSession(user.ID, now)
 	if err != nil {
-		return AuthResult{}, err
+		return AuthResult{}, ErrCreateSessionFailed.Wrap(fmt.Errorf("create session: %w", err))
 	}
 
 	return AuthResult{
@@ -114,35 +175,35 @@ func (s *Service) Signup(input SignupInput) (AuthResult, error) {
 func (s *Service) Login(input LoginInput) (AuthResult, error) {
 	email := normalizeEmail(input.Email)
 	if email == "" || input.Password == "" {
-		return AuthResult{}, ErrMissingCredentials
+		return AuthResult{}, ErrMissingCredentials.Wrap(nil)
 	}
 
 	ctx := context.Background()
 	user, account, err := s.findUserByEmailWithPasswordProvider(ctx, email)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return AuthResult{}, ErrInvalidCredentials
+			return AuthResult{}, ErrInvalidCredentials.Wrap(nil)
 		}
-		return AuthResult{}, err
+		return AuthResult{}, ErrFindUserFailed.Wrap(fmt.Errorf("find user by email: %w", err))
 	}
 
 	if !user.IsActive || user.DeletedAt != nil {
-		return AuthResult{}, ErrInactiveUser
+		return AuthResult{}, ErrInactiveUser.Wrap(nil)
 	}
 
 	if !verifyPassword(account.PasswordHash, input.Password) {
-		return AuthResult{}, ErrInvalidCredentials
+		return AuthResult{}, ErrInvalidCredentials.Wrap(nil)
 	}
 
 	now := time.Now().UTC()
 	account, err = s.touchLastLogin(ctx, account.ID, now)
 	if err != nil {
-		return AuthResult{}, err
+		return AuthResult{}, ErrTouchLastLoginFailed.Wrap(fmt.Errorf("touch last login: %w", err))
 	}
 
 	session, err := s.newSession(user.ID, now)
 	if err != nil {
-		return AuthResult{}, err
+		return AuthResult{}, ErrCreateSessionFailed.Wrap(fmt.Errorf("create session: %w", err))
 	}
 
 	return AuthResult{
@@ -154,25 +215,25 @@ func (s *Service) Login(input LoginInput) (AuthResult, error) {
 
 func (s *Service) GetSession(token string) (AuthResult, error) {
 	if strings.TrimSpace(token) == "" {
-		return AuthResult{}, ErrInvalidSession
+		return AuthResult{}, ErrInvalidSession.Wrap(nil)
 	}
 
 	session, err := s.parseSession(token)
 	if err != nil {
-		return AuthResult{}, ErrInvalidSession
+		return AuthResult{}, ErrInvalidSession.Wrap(err)
 	}
 
 	ctx := context.Background()
 	user, account, err := s.findUserByIDWithPasswordProvider(ctx, session.UserID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return AuthResult{}, ErrInvalidSession
+			return AuthResult{}, ErrInvalidSession.Wrap(nil)
 		}
-		return AuthResult{}, ErrInvalidSession
+		return AuthResult{}, ErrFindSessionUserFailed.Wrap(fmt.Errorf("find session user: %w", err))
 	}
 
 	if !user.IsActive || user.DeletedAt != nil {
-		return AuthResult{}, ErrInvalidSession
+		return AuthResult{}, ErrInvalidSession.Wrap(nil)
 	}
 
 	return AuthResult{
@@ -246,37 +307,37 @@ func (s *Service) newSession(userID string, now time.Time) (Session, error) {
 func (s *Service) parseSession(token string) (Session, error) {
 	parts := strings.Split(token, ".")
 	if len(parts) != 2 {
-		return Session{}, ErrInvalidSession
+		return Session{}, errInvalidSession
 	}
 
 	payloadBytes, err := base64.RawURLEncoding.DecodeString(parts[0])
 	if err != nil {
-		return Session{}, ErrInvalidSession
+		return Session{}, errInvalidSession
 	}
 
 	signature, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
-		return Session{}, ErrInvalidSession
+		return Session{}, errInvalidSession
 	}
 
 	expected := s.sign(string(payloadBytes))
 	if subtle.ConstantTimeCompare(signature, expected) != 1 {
-		return Session{}, ErrInvalidSession
+		return Session{}, errInvalidSession
 	}
 
 	payloadParts := strings.Split(string(payloadBytes), "|")
 	if len(payloadParts) != 3 {
-		return Session{}, ErrInvalidSession
+		return Session{}, errInvalidSession
 	}
 
 	createdAt, err := parseUnixTimestamp(payloadParts[1])
 	if err != nil {
-		return Session{}, ErrInvalidSession
+		return Session{}, errInvalidSession
 	}
 
 	expiresAt, err := parseUnixTimestamp(payloadParts[2])
 	if err != nil {
-		return Session{}, ErrInvalidSession
+		return Session{}, errInvalidSession
 	}
 
 	session := Session{
@@ -287,7 +348,7 @@ func (s *Service) parseSession(token string) (Session, error) {
 	}
 
 	if time.Now().UTC().After(session.ExpiresAt) {
-		return Session{}, ErrInvalidSession
+		return Session{}, errInvalidSession
 	}
 
 	return session, nil
