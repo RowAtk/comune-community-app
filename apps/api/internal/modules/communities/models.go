@@ -4,8 +4,6 @@ import (
 	"comune/apps/api/internal/modules/users"
 	"encoding/json"
 	"time"
-
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Community struct {
@@ -39,10 +37,6 @@ type UpdateCommunityInput struct {
 	Timezone *string          `json:"timezone"`
 	Status   *string          `json:"status"`
 	Settings *json.RawMessage `json:"settings"`
-}
-
-type Service struct {
-	db *pgxpool.Pool
 }
 
 type CommunityMember struct {

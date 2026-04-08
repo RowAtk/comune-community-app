@@ -2,6 +2,9 @@ package communities
 
 import (
 	"comune/apps/api/internal/modules/auth"
+	communityhouseholds "comune/apps/api/internal/modules/communities/households"
+	communityresidents "comune/apps/api/internal/modules/communities/residents"
+	communityunits "comune/apps/api/internal/modules/communities/units"
 	"comune/apps/api/internal/platform/apperror"
 	"comune/apps/api/internal/platform/httpx"
 	"net/http"
@@ -10,11 +13,19 @@ import (
 )
 
 type Handler struct {
-	service *Service
+	service          *Service
+	unitHandler      *communityunits.Handler
+	householdHandler *communityhouseholds.Handler
+	residentHandler  *communityresidents.Handler
 }
 
 func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+	return &Handler{
+		service:          service,
+		unitHandler:      communityunits.NewHandler(service.units),
+		householdHandler: communityhouseholds.NewHandler(service.households),
+		residentHandler:  communityresidents.NewHandler(service.residents),
+	}
 }
 
 func (h *Handler) Register(mux *http.ServeMux, logger *zap.Logger, requireAuth httpx.Middleware) {
@@ -23,6 +34,9 @@ func (h *Handler) Register(mux *http.ServeMux, logger *zap.Logger, requireAuth h
 	mux.Handle("GET /v1/organizations/{organizationID}/communities/{id}", httpx.Adapt(logger, httpx.Chain(h.handleGetByID, requireAuth)))
 	mux.Handle("PATCH /v1/organizations/{organizationID}/communities/{id}", httpx.Adapt(logger, httpx.Chain(h.handleUpdate, requireAuth)))
 	mux.Handle("DELETE /v1/organizations/{organizationID}/communities/{id}", httpx.Adapt(logger, httpx.Chain(h.handleDelete, requireAuth)))
+	h.unitHandler.Register(mux, logger, requireAuth)
+	h.householdHandler.Register(mux, logger, requireAuth)
+	h.residentHandler.Register(mux, logger, requireAuth)
 	mux.Handle("GET /v1/organizations/{organizationID}/communities/{id}/members", httpx.Adapt(logger, httpx.Chain(h.handleListMembers, requireAuth)))
 	mux.Handle("PATCH /v1/organizations/{organizationID}/communities/{id}/members/{userID}", httpx.Adapt(logger, httpx.Chain(h.handleUpdateMember, requireAuth)))
 	mux.Handle("POST /v1/organizations/{organizationID}/communities/{id}/invitations", httpx.Adapt(logger, httpx.Chain(h.handleCreateInvitation, requireAuth)))
@@ -106,7 +120,12 @@ func (h *Handler) handleUpdateMember(w http.ResponseWriter, r *http.Request) err
 		return apperror.Validation("invalid_json", "invalid JSON body", err)
 	}
 
-	member, err := h.service.UpdateMember(r.Context(), r.PathValue("organizationID"), r.PathValue("id"), r.PathValue("userID"), input)
+	current, ok := auth.CurrentAuthResult(r)
+	if !ok {
+		return apperror.Unauthorized("not_authenticated", "not authenticated", nil)
+	}
+
+	member, err := h.service.UpdateMember(r.Context(), r.PathValue("organizationID"), r.PathValue("id"), current.User.ID, r.PathValue("userID"), input)
 	if err != nil {
 		return err
 	}

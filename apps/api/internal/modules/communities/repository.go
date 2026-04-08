@@ -465,6 +465,30 @@ func findUserForMember(ctx context.Context, q queryRower, userID string) (users.
 	return user, err
 }
 
+func findOrganizationRoleForUser(ctx context.Context, q queryRower, organizationID string, userID string) (string, error) {
+	const query = `
+		SELECT role
+		FROM organization_users
+		WHERE organization_id = $1 AND user_id = $2 AND status = 'ACTIVE'
+	`
+
+	var role string
+	err := q.QueryRow(ctx, query, organizationID, userID).Scan(&role)
+	return role, err
+}
+
+func findCommunityRoleForUser(ctx context.Context, q queryRower, organizationID string, communityID string, userID string) (string, error) {
+	const query = `
+		SELECT role
+		FROM community_users
+		WHERE organization_id = $1 AND community_id = $2 AND user_id = $3 AND status = 'ACTIVE'
+	`
+
+	var role string
+	err := q.QueryRow(ctx, query, organizationID, communityID, userID).Scan(&role)
+	return role, err
+}
+
 type queryRower interface {
 	QueryRow(context.Context, string, ...any) pgx.Row
 }

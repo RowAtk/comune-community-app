@@ -1,6 +1,9 @@
 package communities
 
 import (
+	communityhouseholds "comune/apps/api/internal/modules/communities/households"
+	communityresidents "comune/apps/api/internal/modules/communities/residents"
+	communityunits "comune/apps/api/internal/modules/communities/units"
 	"comune/apps/api/internal/platform/apperror"
 	"comune/apps/api/internal/platform/db"
 	"context"
@@ -137,6 +140,16 @@ var (
 		Code:    "update_community_member_failed",
 		Message: "internal server error",
 	}
+	ErrAuthenticationRequired = apperror.Error{
+		Kind:    apperror.KindUnauthorized,
+		Code:    "authentication_required",
+		Message: "authentication is required",
+	}
+	ErrInsufficientMemberPermissions = apperror.Error{
+		Kind:    apperror.KindUnauthorized,
+		Code:    "insufficient_member_permissions",
+		Message: "insufficient permissions to update community members",
+	}
 	ErrInvitationEmailRequired = apperror.Error{
 		Kind:    apperror.KindValidation,
 		Code:    "community_invitation_email_required",
@@ -184,8 +197,20 @@ var (
 	}
 )
 
+type Service struct {
+	db         *pgxpool.Pool
+	units      *communityunits.Service
+	households *communityhouseholds.Service
+	residents  *communityresidents.Service
+}
+
 func NewService(db *pgxpool.Pool) *Service {
-	return &Service{db: db}
+	return &Service{
+		db:         db,
+		units:      communityunits.NewService(db),
+		households: communityhouseholds.NewService(db),
+		residents:  communityresidents.NewService(db),
+	}
 }
 
 func (s *Service) Create(ctx context.Context, input CreateCommunityInput) (Community, error) {
@@ -325,9 +350,10 @@ func (s *Service) ListMembers(ctx context.Context, organizationID string, commun
 	return members, nil
 }
 
-func (s *Service) UpdateMember(ctx context.Context, organizationID string, communityID string, userID string, input UpdateCommunityMemberInput) (CommunityMember, error) {
+func (s *Service) UpdateMember(ctx context.Context, organizationID string, communityID string, actorUserID string, userID string, input UpdateCommunityMemberInput) (CommunityMember, error) {
 	organizationID = strings.TrimSpace(organizationID)
 	communityID = strings.TrimSpace(communityID)
+	actorUserID = strings.TrimSpace(actorUserID)
 	userID = strings.TrimSpace(userID)
 	input = sanitizeMemberInput(input)
 
@@ -336,6 +362,8 @@ func (s *Service) UpdateMember(ctx context.Context, organizationID string, commu
 		return CommunityMember{}, ErrOrganizationIDRequired.Wrap(nil)
 	case communityID == "":
 		return CommunityMember{}, ErrCommunityIDRequired.Wrap(nil)
+	case actorUserID == "":
+		return CommunityMember{}, ErrAuthenticationRequired.Wrap(nil)
 	case userID == "":
 		return CommunityMember{}, ErrUserIDRequired.Wrap(nil)
 	case input.Role == nil && input.Status == nil:
@@ -347,6 +375,9 @@ func (s *Service) UpdateMember(ctx context.Context, organizationID string, commu
 	}
 	if input.Status != nil && !isValidMembershipStatus(*input.Status) {
 		return CommunityMember{}, ErrInvalidMemberStatus.Wrap(nil)
+	}
+	if err := s.authorizeMemberUpdate(ctx, organizationID, communityID, actorUserID, input); err != nil {
+		return CommunityMember{}, err
 	}
 
 	member, err := updateCommunityMember(ctx, s.db, organizationID, communityID, userID, input)
@@ -549,4 +580,28 @@ func isValidMembershipRole(role string) bool {
 func isValidMembershipStatus(status string) bool {
 	_, ok := validMembershipStatuses[status]
 	return ok
+}
+
+func (s *Service) authorizeMemberUpdate(ctx context.Context, organizationID string, communityID string, actorUserID string, input UpdateCommunityMemberInput) error {
+	orgRole, err := findOrganizationRoleForUser(ctx, s.db, organizationID, actorUserID)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return ErrUpdateMemberFailed.Wrap(fmt.Errorf("load organization role: %w", err))
+	}
+
+	communityRole, err := findCommunityRoleForUser(ctx, s.db, organizationID, communityID, actorUserID)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return ErrUpdateMemberFailed.Wrap(fmt.Errorf("load community role: %w", err))
+	}
+
+	isOrgPrivileged := orgRole == "OWNER" || orgRole == "ORG_ADMIN"
+	isCommunityAdmin := communityRole == "COMMUNITY_ADMIN"
+	if !isOrgPrivileged && !isCommunityAdmin {
+		return ErrInsufficientMemberPermissions.Wrap(nil)
+	}
+
+	if input.Role != nil && *input.Role == "COMMUNITY_ADMIN" && !isOrgPrivileged && !isCommunityAdmin {
+		return ErrInsufficientMemberPermissions.Wrap(nil)
+	}
+
+	return nil
 }
