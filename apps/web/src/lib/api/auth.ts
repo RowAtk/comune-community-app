@@ -34,7 +34,52 @@ export type AuthPayload = {
 	session: AuthSessionView;
 };
 
+export type DashboardOrganizationMembership = {
+	organization_id: string;
+	name: string;
+	slug: string;
+	role: string;
+	status: string;
+	joined_at: string;
+};
+
+export type DashboardCommunityMembership = {
+	organization_id: string;
+	organization_name: string;
+	organization_slug: string;
+	community_id: string;
+	community_name: string;
+	community_slug: string;
+	role: string;
+	status: string;
+	joined_at: string;
+};
+
+export type DashboardPayload = {
+	organizations: DashboardOrganizationMembership[];
+	communities: DashboardCommunityMembership[];
+};
+
+export type OrganizationCreateValues = {
+	name: string;
+	slug: string;
+	legal_name: string;
+	billing_email: string;
+	phone: string;
+	country_code: string;
+	timezone: string;
+};
+
+export type CommunityCreateValues = {
+	organization_id: string;
+	name: string;
+	slug: string;
+	address: string;
+	timezone: string;
+};
+
 export type AuthResponse = ApiEnvelope<AuthPayload>;
+export type DashboardResponse = ApiEnvelope<DashboardPayload>;
 
 export type LoginPayload = {
 	email: string;

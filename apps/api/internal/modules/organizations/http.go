@@ -36,7 +36,12 @@ func (h *Handler) handleCreate(w http.ResponseWriter, r *http.Request) error {
 		return apperror.Validation("invalid_json", "invalid JSON body", err)
 	}
 
-	org, err := h.service.Create(r.Context(), input)
+	current, ok := auth.CurrentAuthResult(r)
+	if !ok {
+		return apperror.Unauthorized("not_authenticated", "not authenticated", nil)
+	}
+
+	org, err := h.service.Create(r.Context(), current.User.ID, input)
 	if err != nil {
 		return err
 	}

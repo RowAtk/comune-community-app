@@ -177,10 +177,13 @@ func NewService(db *pgxpool.Pool) *Service {
 	return &Service{db: db}
 }
 
-func (s *Service) Create(ctx context.Context, input CreateOrganizationInput) (Organization, error) {
+func (s *Service) Create(ctx context.Context, creatorUserID string, input CreateOrganizationInput) (Organization, error) {
+	creatorUserID = strings.TrimSpace(creatorUserID)
 	input = sanitizeCreateInput(input)
 
 	switch {
+	case creatorUserID == "":
+		return Organization{}, ErrUserIDRequired.Wrap(nil)
 	case input.Name == "":
 		return Organization{}, ErrOrganizationNameRequired.Wrap(nil)
 	case input.Slug == "":
@@ -189,7 +192,7 @@ func (s *Service) Create(ctx context.Context, input CreateOrganizationInput) (Or
 		return Organization{}, ErrInvalidOrganizationStatus.Wrap(nil)
 	}
 
-	org, err := insertOrganization(ctx, s.db, input)
+	org, err := insertOrganization(ctx, s.db, creatorUserID, input)
 	if err != nil {
 		if db.IsUniqueViolation(err) {
 			return Organization{}, ErrOrganizationSlugTaken.Wrap(fmt.Errorf("create organization: %w", err))
@@ -206,7 +209,7 @@ func (s *Service) List(ctx context.Context) ([]Organization, error) {
 		return nil, ErrListOrganizationsFailed.Wrap(fmt.Errorf("list organizations: %w", err))
 	}
 
-	return organizations, nil
+	return ensureSlice(organizations), nil
 }
 
 func (s *Service) GetByID(ctx context.Context, id string) (Organization, error) {
@@ -272,7 +275,7 @@ func (s *Service) ListMembers(ctx context.Context, organizationID string) ([]Org
 		return nil, ErrListMembersFailed.Wrap(fmt.Errorf("list organization members: %w", err))
 	}
 
-	return members, nil
+	return ensureSlice(members), nil
 }
 
 func (s *Service) UpdateMember(ctx context.Context, organizationID string, userID string, input UpdateOrganizationMemberInput) (OrganizationMember, error) {
@@ -347,7 +350,7 @@ func (s *Service) ListInvitations(ctx context.Context, organizationID string) ([
 		return nil, ErrListInvitationsFailed.Wrap(fmt.Errorf("list organization invitations: %w", err))
 	}
 
-	return invitations, nil
+	return ensureSlice(invitations), nil
 }
 
 func (s *Service) AcceptInvitation(ctx context.Context, params acceptOrganizationInvitationParams) (OrganizationMember, error) {
@@ -509,4 +512,12 @@ func isValidMembershipRole(role string) bool {
 func isValidMembershipStatus(status string) bool {
 	_, ok := validMembershipStatuses[status]
 	return ok
+}
+
+func ensureSlice[T any](items []T) []T {
+	if items == nil {
+		return []T{}
+	}
+
+	return items
 }

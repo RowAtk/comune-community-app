@@ -1,8 +1,11 @@
-.PHONY: help install install-api install-web api web db-up db-down db-logs db-ps db-init
+.PHONY: help install install-api install-web api web db-up db-down db-logs db-ps db-init db-seed db-init-docker db-seed-docker
 
 COMPOSE := docker compose -f database/docker-compose.yml
 API_DIR := apps/api
 WEB_DIR := apps/web
+DB_CONTAINER := db
+DB_USER := user
+DB_NAME := comune_dev
 
 help:
 	@echo "Available targets:"
@@ -15,7 +18,10 @@ help:
 	@echo "  make db-down      Stop the Postgres container"
 	@echo "  make db-logs      Tail Postgres logs"
 	@echo "  make db-ps        Show Postgres container status"
-	@echo "  make db-init      Apply the SQL schema to the local dev database"
+	@echo "  make db-init      Apply the SQL schema using local psql and DATABASE_URL"
+	@echo "  make db-seed      Apply the local development seed data using local psql and DATABASE_URL"
+	@echo "  make db-init-docker Apply the SQL schema using psql inside the Docker db container"
+	@echo "  make db-seed-docker Apply the local development seed using psql inside the Docker db container"
 
 install: install-api install-web
 
@@ -45,3 +51,12 @@ db-ps:
 
 db-init:
 	psql "$(DATABASE_URL)" -f database/gated-community-schema.sql
+
+db-seed:
+	psql "$(DATABASE_URL)" -f database/seed.sql
+
+db-init-docker:
+	$(COMPOSE) exec -T $(DB_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME) -f /dev/stdin < database/gated-community-schema.sql
+
+db-seed-docker:
+	$(COMPOSE) exec -T $(DB_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME) -f /dev/stdin < database/seed.sql

@@ -24,6 +24,7 @@ func (h *Handler) Register(mux *http.ServeMux, logger *zap.Logger, requireAuth h
 	mux.Handle("POST /v1/auth/signup", httpx.Adapt(logger, h.handleSignup))
 	mux.Handle("POST /v1/auth/login", httpx.Adapt(logger, h.handleLogin))
 	mux.Handle("GET /v1/auth/me", httpx.Adapt(logger, httpx.Chain(h.handleMe, requireAuth)))
+	mux.Handle("GET /v1/auth/dashboard", httpx.Adapt(logger, httpx.Chain(h.handleDashboard, requireAuth)))
 	mux.Handle("POST /v1/auth/logout", httpx.Adapt(logger, httpx.Chain(h.handleLogout, requireAuth)))
 }
 
@@ -66,6 +67,21 @@ func (h *Handler) handleMe(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	httpx.WriteJSON(w, http.StatusOK, authResponse(result))
+	return nil
+}
+
+func (h *Handler) handleDashboard(w http.ResponseWriter, r *http.Request) error {
+	result, ok := CurrentAuthResult(r)
+	if !ok {
+		return apperror.Unauthorized("not_authenticated", "not authenticated", nil)
+	}
+
+	dashboard, err := h.service.GetDashboard(r.Context(), result.User.ID)
+	if err != nil {
+		return err
+	}
+
+	httpx.WriteJSON(w, http.StatusOK, httpx.ResponseEnvelope{Data: dashboard})
 	return nil
 }
 

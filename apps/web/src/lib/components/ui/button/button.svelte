@@ -9,6 +9,7 @@
 		variant = 'default',
 		size = 'default',
 		href = undefined,
+		onclick = undefined,
 		formAction = undefined,
 		class: className = '',
 		disabled = false,
@@ -18,6 +19,7 @@
 		variant?: Variant;
 		size?: Size;
 		href?: string;
+		onclick?: ((event: MouseEvent) => void) | undefined;
 		formAction?: string;
 		class?: string;
 		disabled?: boolean;
@@ -25,7 +27,7 @@
 	} = $props();
 
 	const base =
-		'inline-flex items-center justify-center gap-2 rounded-xl text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50';
+		'inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50';
 
 	const variants: Record<Variant, string> = {
 		default:
@@ -33,26 +35,32 @@
 		secondary:
 			'bg-[var(--color-secondary-600)] text-white shadow-sm hover:bg-[var(--color-secondary-700)] focus-visible:ring-[var(--color-secondary-500)]',
 		outline:
-			'border border-[var(--color-app-border)] bg-white text-[var(--color-app-text)] hover:bg-[var(--color-brand-50)] focus-visible:ring-[var(--color-brand-400)]',
+			'border border-slate-300 bg-white text-[var(--color-app-text)] shadow-sm hover:border-slate-400 hover:bg-slate-50 focus-visible:ring-[var(--color-brand-400)]',
 		ghost:
-			'text-[var(--color-app-muted)] hover:bg-white hover:text-[var(--color-app-text)] focus-visible:ring-[var(--color-secondary-500)]',
+			'text-[var(--color-app-muted)] hover:bg-slate-100 hover:text-[var(--color-app-text)] focus-visible:ring-[var(--color-secondary-500)]',
 		destructive:
 			'bg-[var(--color-danger-600)] text-white shadow-sm hover:bg-[var(--color-danger-700)] focus-visible:ring-[var(--color-danger-500)]'
 	};
 
 	const sizes: Record<Size, string> = {
 		default: 'h-10 px-4 py-2',
-		sm: 'h-9 px-3',
+		sm: 'h-9 px-4',
 		lg: 'h-11 px-5 text-base'
 	};
 </script>
 
 {#if href}
-	<a class={cn(base, variants[variant], sizes[size], className)} {href} aria-disabled={disabled}>
+	<a class={cn(base, variants[variant], sizes[size], className)} {href} aria-disabled={disabled} {onclick}>
 		{@render children?.()}
 	</a>
 {:else}
-	<button class={cn(base, variants[variant], sizes[size], className)} {type} {disabled} formaction={formAction}>
+	<button
+		class={cn(base, variants[variant], sizes[size], className)}
+		{type}
+		{disabled}
+		formaction={formAction}
+		{onclick}
+	>
 		{@render children?.()}
 	</button>
 {/if}

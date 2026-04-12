@@ -3,6 +3,8 @@ package auth
 import (
 	"comune/apps/api/internal/modules/users"
 	"context"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func (s *Service) findUserByEmailWithPasswordProvider(ctx context.Context, email string) (users.User, AuthAccount, error) {
@@ -100,4 +102,98 @@ func scanUserWithAccount(row rowScanner) (users.User, AuthAccount, error) {
 
 type rowScanner interface {
 	Scan(dest ...any) error
+}
+
+func listDashboardOrganizations(ctx context.Context, db *pgxpool.Pool, userID string) ([]DashboardOrganizationMembership, error) {
+	const query = `
+		SELECT
+			ou.organization_id,
+			o.name,
+			o.slug,
+			ou.role,
+			ou.status,
+			COALESCE(ou.joined_at, ou.created_at)
+		FROM organization_users ou
+		JOIN organizations o ON o.id = ou.organization_id
+		WHERE ou.user_id = $1
+		  AND ou.status = 'ACTIVE'
+		  AND o.deleted_at IS NULL
+		ORDER BY o.name ASC
+	`
+
+	rows, err := db.Query(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var organizations []DashboardOrganizationMembership
+	for rows.Next() {
+		var membership DashboardOrganizationMembership
+		if err := rows.Scan(
+			&membership.OrganizationID,
+			&membership.Name,
+			&membership.Slug,
+			&membership.Role,
+			&membership.Status,
+			&membership.JoinedAt,
+		); err != nil {
+			return nil, err
+		}
+
+		organizations = append(organizations, membership)
+	}
+
+	return organizations, rows.Err()
+}
+
+func listDashboardCommunities(ctx context.Context, db *pgxpool.Pool, userID string) ([]DashboardCommunityMembership, error) {
+	const query = `
+		SELECT
+			cu.organization_id,
+			o.name,
+			o.slug,
+			cu.community_id,
+			c.name,
+			c.slug,
+			cu.role,
+			cu.status,
+			COALESCE(cu.joined_at, cu.created_at)
+		FROM community_users cu
+		JOIN organizations o ON o.id = cu.organization_id
+		JOIN communities c ON c.id = cu.community_id
+		WHERE cu.user_id = $1
+		  AND cu.status = 'ACTIVE'
+		  AND o.deleted_at IS NULL
+		  AND c.deleted_at IS NULL
+		ORDER BY o.name ASC, c.name ASC
+	`
+
+	rows, err := db.Query(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var communities []DashboardCommunityMembership
+	for rows.Next() {
+		var membership DashboardCommunityMembership
+		if err := rows.Scan(
+			&membership.OrganizationID,
+			&membership.OrganizationName,
+			&membership.OrganizationSlug,
+			&membership.CommunityID,
+			&membership.CommunityName,
+			&membership.CommunitySlug,
+			&membership.Role,
+			&membership.Status,
+			&membership.JoinedAt,
+		); err != nil {
+			return nil, err
+		}
+
+		communities = append(communities, membership)
+	}
+
+	return communities, rows.Err()
 }

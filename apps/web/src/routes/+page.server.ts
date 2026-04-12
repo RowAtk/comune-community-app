@@ -6,11 +6,17 @@ import type { Actions } from './$types';
 
 export const load = async (event) => {
 	try {
-		const auth = await apiServerRequest<AuthPayload>(event, '/v1/auth/me');
-		return { auth };
-	} catch {
-		return { auth: null };
+		await apiServerRequest<AuthPayload>(event, '/v1/auth/me');
+		throw redirect(303, '/dashboard');
+	} catch (error) {
+		if (error instanceof ApiError) {
+			return { auth: null };
+		}
+
+		throw error;
 	}
+
+	return { auth: null };
 };
 
 export const actions: Actions = {
@@ -45,7 +51,7 @@ export const actions: Actions = {
 		}
 
 		syncSessionCookie(event.cookies, response);
-		return { loginSuccess: true };
+		throw redirect(303, '/dashboard');
 	},
 	signup: async (event) => {
 		const form = await event.request.formData();
@@ -91,7 +97,7 @@ export const actions: Actions = {
 		}
 
 		syncSessionCookie(event.cookies, response);
-		return { signupSuccess: true };
+		throw redirect(303, '/dashboard');
 	},
 	logout: async (event) => {
 		try {
@@ -101,19 +107,5 @@ export const actions: Actions = {
 		}
 
 		return { logoutSuccess: true };
-	},
-	openWorkspace: async ({ request }) => {
-		const form = await request.formData();
-		const organizationId = String(form.get('organizationId') ?? '').trim();
-		const communityId = String(form.get('communityId') ?? '').trim();
-
-		if (!organizationId || !communityId) {
-			return { error: 'Both organization ID and community ID are required.' };
-		}
-
-		throw redirect(
-			303,
-			`/organizations/${encodeURIComponent(organizationId)}/communities/${encodeURIComponent(communityId)}`
-		);
 	}
 };

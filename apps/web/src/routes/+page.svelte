@@ -1,10 +1,9 @@
 <script lang="ts">
-	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
-	import { Building2, Home, LogIn, ShieldCheck, UserPlus, Users } from 'lucide-svelte';
+	import { Building2, Home, LogIn, UserPlus, Users } from 'lucide-svelte';
 
 	let { data, form } = $props();
 </script>
@@ -58,125 +57,79 @@
 				</CardContent>
 			</Card>
 
-			{#if data.auth}
+			<div class="grid gap-6">
 				<Card class="border-slate-200/70 bg-white">
 					<CardHeader>
-						<div class="flex items-center justify-between gap-4">
+						<div class="flex items-center gap-3">
+							<LogIn class="h-5 w-5 text-[var(--color-secondary-700)]" />
 							<div>
-								<CardTitle>Authenticated</CardTitle>
-								<CardDescription>
-									Signed in as {data.auth.user.first_name || data.auth.user.email}
-								</CardDescription>
+								<CardTitle>Log In</CardTitle>
+								<CardDescription>Use your existing account to unlock the workspace.</CardDescription>
 							</div>
-							<Badge variant="success">
-								<ShieldCheck class="mr-1 h-3.5 w-3.5" />
-								Session active
-							</Badge>
 						</div>
 					</CardHeader>
-					<CardContent class="space-y-5">
-						<div class="space-y-2 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-							<p class="text-sm font-medium text-slate-900">{data.auth.user.email}</p>
-							<p class="text-sm text-slate-600">
-								Session expires {new Date(data.auth.session.expires_at).toLocaleString()}
-							</p>
-						</div>
-
+					<CardContent>
 						<form method="POST" class="space-y-4">
 							<div class="space-y-2">
-								<Label for="organizationId">Organization ID</Label>
-								<Input id="organizationId" name="organizationId" placeholder="8c49... or demo-org" required />
+								<Label for="email">Email</Label>
+								<Input id="email" name="email" type="email" required value={form?.loginValues?.email ?? ''} />
 							</div>
 							<div class="space-y-2">
-								<Label for="communityId">Community ID</Label>
-								<Input id="communityId" name="communityId" placeholder="f39d... or main-estate" required />
+								<Label for="password">Password</Label>
+								<Input id="password" name="password" type="password" required />
 							</div>
-							{#if form?.error}
-								<p class="text-sm text-[var(--color-danger-700)]">{form.error}</p>
+							{#if form?.loginError}
+								<p class="text-sm text-[var(--color-danger-700)]">{form.loginError}</p>
 							{/if}
-							<Button type="submit" class="w-full" formAction="?/openWorkspace">Open Workspace</Button>
-						</form>
-
-						<form method="POST">
-							<Button type="submit" variant="ghost" class="w-full" formAction="?/logout">Log Out</Button>
+							<Button type="submit" class="w-full" formAction="?/login">Log In</Button>
 						</form>
 					</CardContent>
 				</Card>
-			{:else}
-				<div class="grid gap-6">
-					<Card class="border-slate-200/70 bg-white">
-						<CardHeader>
-							<div class="flex items-center gap-3">
-								<LogIn class="h-5 w-5 text-[var(--color-secondary-700)]" />
-								<div>
-									<CardTitle>Log In</CardTitle>
-									<CardDescription>Use your existing account to unlock the workspace.</CardDescription>
-								</div>
-							</div>
-						</CardHeader>
-						<CardContent>
-							<form method="POST" class="space-y-4">
-								<div class="space-y-2">
-									<Label for="email">Email</Label>
-									<Input id="email" name="email" type="email" required value={form?.loginValues?.email ?? ''} />
-								</div>
-								<div class="space-y-2">
-									<Label for="password">Password</Label>
-									<Input id="password" name="password" type="password" required />
-								</div>
-								{#if form?.loginError}
-									<p class="text-sm text-[var(--color-danger-700)]">{form.loginError}</p>
-								{/if}
-								<Button type="submit" class="w-full" formAction="?/login">Log In</Button>
-							</form>
-						</CardContent>
-					</Card>
 
-					<Card class="border-slate-200/70 bg-white">
-						<CardHeader>
-							<div class="flex items-center gap-3">
-								<UserPlus class="h-5 w-5 text-[var(--color-brand-700)]" />
-								<div>
-									<CardTitle>Create Account</CardTitle>
-									<CardDescription>Spin up a new session against the backend auth API.</CardDescription>
-								</div>
+				<Card class="border-slate-200/70 bg-white">
+					<CardHeader>
+						<div class="flex items-center gap-3">
+							<UserPlus class="h-5 w-5 text-[var(--color-brand-700)]" />
+							<div>
+								<CardTitle>Create Account</CardTitle>
+								<CardDescription>Spin up a new session against the backend auth API.</CardDescription>
 							</div>
-						</CardHeader>
-						<CardContent>
-							<form method="POST" class="grid gap-4 md:grid-cols-2">
-								<div class="space-y-2 md:col-span-2">
-									<Label for="signup_email">Email</Label>
-									<Input id="signup_email" name="signup_email" type="email" required value={form?.signupValues?.email ?? ''} />
-								</div>
-								<div class="space-y-2">
-									<Label for="first_name">First Name</Label>
-									<Input id="first_name" name="first_name" value={form?.signupValues?.first_name ?? ''} />
-								</div>
-								<div class="space-y-2">
-									<Label for="last_name">Last Name</Label>
-									<Input id="last_name" name="last_name" value={form?.signupValues?.last_name ?? ''} />
-								</div>
-								<div class="space-y-2">
-									<Label for="phone">Phone</Label>
-									<Input id="phone" name="phone" value={form?.signupValues?.phone ?? ''} />
-								</div>
-								<div class="space-y-2">
-									<Label for="signup_password">Password</Label>
-									<Input id="signup_password" name="signup_password" type="password" required />
-								</div>
-								<div class="md:col-span-2">
-									{#if form?.signupError}
-										<p class="text-sm text-[var(--color-danger-700)]">{form.signupError}</p>
-									{/if}
-								</div>
-								<div class="md:col-span-2">
-									<Button type="submit" class="w-full" formAction="?/signup">Create Account</Button>
-								</div>
-							</form>
-						</CardContent>
-					</Card>
-				</div>
-			{/if}
+						</div>
+					</CardHeader>
+					<CardContent>
+						<form method="POST" class="grid gap-4 md:grid-cols-2">
+							<div class="space-y-2 md:col-span-2">
+								<Label for="signup_email">Email</Label>
+								<Input id="signup_email" name="signup_email" type="email" required value={form?.signupValues?.email ?? ''} />
+							</div>
+							<div class="space-y-2">
+								<Label for="first_name">First Name</Label>
+								<Input id="first_name" name="first_name" value={form?.signupValues?.first_name ?? ''} />
+							</div>
+							<div class="space-y-2">
+								<Label for="last_name">Last Name</Label>
+								<Input id="last_name" name="last_name" value={form?.signupValues?.last_name ?? ''} />
+							</div>
+							<div class="space-y-2">
+								<Label for="phone">Phone</Label>
+								<Input id="phone" name="phone" value={form?.signupValues?.phone ?? ''} />
+							</div>
+							<div class="space-y-2">
+								<Label for="signup_password">Password</Label>
+								<Input id="signup_password" name="signup_password" type="password" required />
+							</div>
+							<div class="md:col-span-2">
+								{#if form?.signupError}
+									<p class="text-sm text-[var(--color-danger-700)]">{form.signupError}</p>
+								{/if}
+							</div>
+							<div class="md:col-span-2">
+								<Button type="submit" class="w-full" formAction="?/signup">Create Account</Button>
+							</div>
+						</form>
+					</CardContent>
+				</Card>
+			</div>
 		</div>
 	</div>
 </div>

@@ -92,6 +92,16 @@ var (
 		Code:    "find_session_user_failed",
 		Message: "internal server error",
 	}
+	ErrUserIDRequired = apperror.Error{
+		Kind:    apperror.KindValidation,
+		Code:    "user_id_required",
+		Message: "user id is required",
+	}
+	ErrLoadDashboardFailed = apperror.Error{
+		Kind:    apperror.KindInternal,
+		Code:    "load_dashboard_failed",
+		Message: "internal server error",
+	}
 )
 
 func NewService(db *pgxpool.Pool, sessionSecret string, sessionDuration time.Duration) *Service {
@@ -245,6 +255,28 @@ func (s *Service) GetSession(token string) (AuthResult, error) {
 
 func (s *Service) Logout(token string) {
 	_ = token
+}
+
+func (s *Service) GetDashboard(ctx context.Context, userID string) (DashboardResult, error) {
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return DashboardResult{}, ErrUserIDRequired.Wrap(nil)
+	}
+
+	organizations, err := listDashboardOrganizations(ctx, s.db, userID)
+	if err != nil {
+		return DashboardResult{}, ErrLoadDashboardFailed.Wrap(fmt.Errorf("list dashboard organizations: %w", err))
+	}
+
+	communities, err := listDashboardCommunities(ctx, s.db, userID)
+	if err != nil {
+		return DashboardResult{}, ErrLoadDashboardFailed.Wrap(fmt.Errorf("list dashboard communities: %w", err))
+	}
+
+	return DashboardResult{
+		Organizations: ensureSlice(organizations),
+		Communities:   ensureSlice(communities),
+	}, nil
 }
 
 func normalizeEmail(email string) string {
@@ -439,4 +471,12 @@ func (s *Service) touchLastLogin(ctx context.Context, authAccountID string, now 
 	)
 
 	return account, err
+}
+
+func ensureSlice[T any](items []T) []T {
+	if items == nil {
+		return []T{}
+	}
+
+	return items
 }

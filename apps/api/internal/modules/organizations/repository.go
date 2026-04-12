@@ -2,6 +2,7 @@ package organizations
 
 import (
 	"comune/apps/api/internal/modules/users"
+	"comune/apps/api/internal/platform/db"
 	"context"
 	"encoding/json"
 
@@ -9,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func insertOrganization(ctx context.Context, db *pgxpool.Pool, input CreateOrganizationInput) (Organization, error) {
+func insertOrganization(ctx context.Context, pool *pgxpool.Pool, creatorUserID string, input CreateOrganizationInput) (Organization, error) {
 	const query = `
 		INSERT INTO organizations (
 			name, slug, legal_name, billing_email, phone, country_code, timezone, status, settings
@@ -19,33 +20,39 @@ func insertOrganization(ctx context.Context, db *pgxpool.Pool, input CreateOrgan
 	`
 
 	var org Organization
-	err := db.QueryRow(
-		ctx,
-		query,
-		input.Name,
-		input.Slug,
-		input.LegalName,
-		input.BillingEmail,
-		input.Phone,
-		input.CountryCode,
-		input.Timezone,
-		input.Status,
-		jsonbOrEmpty(input.Settings),
-	).Scan(
-		&org.ID,
-		&org.Name,
-		&org.Slug,
-		&org.LegalName,
-		&org.BillingEmail,
-		&org.Phone,
-		&org.CountryCode,
-		&org.Timezone,
-		&org.Status,
-		&org.Settings,
-		&org.CreatedAt,
-		&org.UpdatedAt,
-		&org.DeletedAt,
-	)
+	err := db.RunInTx(ctx, pool, func(tx pgx.Tx) error {
+		if err := tx.QueryRow(
+			ctx,
+			query,
+			input.Name,
+			input.Slug,
+			input.LegalName,
+			input.BillingEmail,
+			input.Phone,
+			input.CountryCode,
+			input.Timezone,
+			input.Status,
+			jsonbOrEmpty(input.Settings),
+		).Scan(
+			&org.ID,
+			&org.Name,
+			&org.Slug,
+			&org.LegalName,
+			&org.BillingEmail,
+			&org.Phone,
+			&org.CountryCode,
+			&org.Timezone,
+			&org.Status,
+			&org.Settings,
+			&org.CreatedAt,
+			&org.UpdatedAt,
+			&org.DeletedAt,
+		); err != nil {
+			return err
+		}
+
+		return insertOrganizationMembership(ctx, tx, org.ID, creatorUserID, "OWNER")
+	})
 
 	return org, err
 }
@@ -454,6 +461,21 @@ func acceptOrganizationInvitation(ctx context.Context, tx pgx.Tx, invitation Org
 	}
 
 	_, err = tx.Exec(ctx, upsertMembership, invitation.OrganizationID, userID, invitation.Role, invitation.InvitedBy)
+	return err
+}
+
+func insertOrganizationMembership(ctx context.Context, tx pgx.Tx, organizationID string, userID string, role string) error {
+	const query = `
+		INSERT INTO organization_users (organization_id, user_id, role, status, joined_at)
+		VALUES ($1, $2, $3, 'ACTIVE', NOW())
+		ON CONFLICT (organization_id, user_id) DO UPDATE
+		SET
+			role = EXCLUDED.role,
+			status = 'ACTIVE',
+			joined_at = COALESCE(organization_users.joined_at, EXCLUDED.joined_at)
+	`
+
+	_, err := tx.Exec(ctx, query, organizationID, userID, role)
 	return err
 }
 

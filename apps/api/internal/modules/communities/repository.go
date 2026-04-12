@@ -2,6 +2,7 @@ package communities
 
 import (
 	"comune/apps/api/internal/modules/users"
+	"comune/apps/api/internal/platform/db"
 	"context"
 	"encoding/json"
 
@@ -9,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func insertCommunity(ctx context.Context, db *pgxpool.Pool, input CreateCommunityInput) (Community, error) {
+func insertCommunity(ctx context.Context, pool *pgxpool.Pool, creatorUserID string, input CreateCommunityInput) (Community, error) {
 	const query = `
 		INSERT INTO communities (
 			organization_id, name, slug, address, timezone, status, settings
@@ -19,29 +20,35 @@ func insertCommunity(ctx context.Context, db *pgxpool.Pool, input CreateCommunit
 	`
 
 	var community Community
-	err := db.QueryRow(
-		ctx,
-		query,
-		input.OrganizationID,
-		input.Name,
-		input.Slug,
-		input.Address,
-		input.Timezone,
-		input.Status,
-		jsonbOrEmpty(input.Settings),
-	).Scan(
-		&community.ID,
-		&community.OrganizationID,
-		&community.Name,
-		&community.Slug,
-		&community.Address,
-		&community.Timezone,
-		&community.Status,
-		&community.Settings,
-		&community.CreatedAt,
-		&community.UpdatedAt,
-		&community.DeletedAt,
-	)
+	err := db.RunInTx(ctx, pool, func(tx pgx.Tx) error {
+		if err := tx.QueryRow(
+			ctx,
+			query,
+			input.OrganizationID,
+			input.Name,
+			input.Slug,
+			input.Address,
+			input.Timezone,
+			input.Status,
+			jsonbOrEmpty(input.Settings),
+		).Scan(
+			&community.ID,
+			&community.OrganizationID,
+			&community.Name,
+			&community.Slug,
+			&community.Address,
+			&community.Timezone,
+			&community.Status,
+			&community.Settings,
+			&community.CreatedAt,
+			&community.UpdatedAt,
+			&community.DeletedAt,
+		); err != nil {
+			return err
+		}
+
+		return insertCommunityMembership(ctx, tx, community.OrganizationID, community.ID, creatorUserID, "COMMUNITY_ADMIN")
+	})
 
 	return community, err
 }
@@ -439,6 +446,21 @@ func acceptCommunityInvitation(ctx context.Context, tx pgx.Tx, invitation Commun
 	}
 
 	_, err = tx.Exec(ctx, upsertMembership, invitation.OrganizationID, invitation.CommunityID, userID, invitation.Role, invitation.InvitedBy)
+	return err
+}
+
+func insertCommunityMembership(ctx context.Context, tx pgx.Tx, organizationID string, communityID string, userID string, role string) error {
+	const query = `
+		INSERT INTO community_users (organization_id, community_id, user_id, role, status, joined_at)
+		VALUES ($1, $2, $3, $4, 'ACTIVE', NOW())
+		ON CONFLICT (community_id, user_id) DO UPDATE
+		SET
+			role = EXCLUDED.role,
+			status = 'ACTIVE',
+			joined_at = COALESCE(community_users.joined_at, EXCLUDED.joined_at)
+	`
+
+	_, err := tx.Exec(ctx, query, organizationID, communityID, userID, role)
 	return err
 }
 

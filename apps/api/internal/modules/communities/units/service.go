@@ -125,7 +125,7 @@ func (s *Service) List(ctx context.Context, organizationID string, communityID s
 		return nil, ErrListFailed.Wrap(fmt.Errorf("list units: %w", err))
 	}
 
-	return units, nil
+	return ensureSlice(units), nil
 }
 
 func (s *Service) GetByID(ctx context.Context, organizationID string, communityID string, unitID string) (Unit, error) {
@@ -253,4 +253,12 @@ func sanitizeUpdateInput(input UpdateInput) UpdateInput {
 func isValidStatus(status string) bool {
 	_, ok := validStatuses[status]
 	return ok
+}
+
+func ensureSlice[T any](items []T) []T {
+	if items == nil {
+		return []T{}
+	}
+
+	return items
 }

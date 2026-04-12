@@ -184,7 +184,7 @@ func (s *Service) List(ctx context.Context, organizationID string, communityID s
 		return nil, ErrListFailed.Wrap(fmt.Errorf("list residents: %w", err))
 	}
 
-	return residents, nil
+	return ensureSlice(residents), nil
 }
 
 func (s *Service) GetByID(ctx context.Context, organizationID string, communityID string, residentID string) (Resident, error) {
@@ -432,4 +432,12 @@ func stringPtrValue(value *string) string {
 
 func isPrimaryContactConflict(err error) bool {
 	return db.IsUniqueViolation(err) && db.IsConstraintViolation(err, "uq_residents_primary_contact_per_household")
+}
+
+func ensureSlice[T any](items []T) []T {
+	if items == nil {
+		return []T{}
+	}
+
+	return items
 }

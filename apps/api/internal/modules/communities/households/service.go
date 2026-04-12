@@ -122,7 +122,7 @@ func (s *Service) List(ctx context.Context, organizationID string, communityID s
 		return nil, ErrListFailed.Wrap(fmt.Errorf("list households: %w", err))
 	}
 
-	return households, nil
+	return ensureSlice(households), nil
 }
 
 func (s *Service) GetByID(ctx context.Context, organizationID string, communityID string, householdID string) (Household, error) {
@@ -233,4 +233,12 @@ func sanitizeUpdateInput(input UpdateInput) UpdateInput {
 		input.Name = &value
 	}
 	return input
+}
+
+func ensureSlice[T any](items []T) []T {
+	if items == nil {
+		return []T{}
+	}
+
+	return items
 }

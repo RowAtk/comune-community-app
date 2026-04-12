@@ -45,6 +45,32 @@ type AuthResult struct {
 	Session     Session     `json:"session"`
 }
 
+type DashboardOrganizationMembership struct {
+	OrganizationID string    `json:"organization_id"`
+	Name           string    `json:"name"`
+	Slug           string    `json:"slug"`
+	Role           string    `json:"role"`
+	Status         string    `json:"status"`
+	JoinedAt       time.Time `json:"joined_at"`
+}
+
+type DashboardCommunityMembership struct {
+	OrganizationID   string    `json:"organization_id"`
+	OrganizationName string    `json:"organization_name"`
+	OrganizationSlug string    `json:"organization_slug"`
+	CommunityID      string    `json:"community_id"`
+	CommunityName    string    `json:"community_name"`
+	CommunitySlug    string    `json:"community_slug"`
+	Role             string    `json:"role"`
+	Status           string    `json:"status"`
+	JoinedAt         time.Time `json:"joined_at"`
+}
+
+type DashboardResult struct {
+	Organizations []DashboardOrganizationMembership `json:"organizations"`
+	Communities   []DashboardCommunityMembership    `json:"communities"`
+}
+
 type Service struct {
 	db              *pgxpool.Pool
 	users           *users.Service

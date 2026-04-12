@@ -1,7 +1,13 @@
 <script lang="ts">
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
-	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
+	import {
+		Card,
+		CardContent,
+		CardDescription,
+		CardHeader,
+		CardTitle
+	} from '$lib/components/ui/card';
 
 	let { data } = $props();
 </script>
@@ -9,7 +15,7 @@
 <div class="space-y-8">
 	<div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
 		<div class="space-y-2">
-			<p class="text-sm font-medium uppercase tracking-[0.22em] text-[var(--color-secondary-700)]">
+			<p class="text-sm font-medium tracking-[0.22em] text-[var(--color-secondary-700)] uppercase">
 				Residents
 			</p>
 			<h1 class="text-4xl font-semibold tracking-tight text-slate-950">People and contacts</h1>
@@ -19,7 +25,7 @@
 			</p>
 		</div>
 		<div class="flex gap-3">
-			<Badge variant="secondary">{data.residents.length} residents</Badge>
+			<Badge variant="secondary">{data.residents?.length || 0} residents</Badge>
 			<Button href="../households" variant="outline">View Households</Button>
 		</div>
 	</div>

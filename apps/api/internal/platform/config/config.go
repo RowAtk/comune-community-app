@@ -14,6 +14,8 @@ type Config struct {
 	DatabaseURL     string
 	SessionDuration time.Duration
 	SessionSecret   string
+	ServiceName     string
+	OTelEndpoint    string
 }
 
 func Load() (Config, error) {
@@ -27,6 +29,8 @@ func Load() (Config, error) {
 		DatabaseURL:     stringOrDefault("DATABASE_URL", "postgres://user:pass@localhost:5432/gated_db?sslmode=disable"),
 		SessionDuration: durationOrDefault("SESSION_DURATION", 7*24*time.Hour),
 		SessionSecret:   stringOrDefault("SESSION_SECRET", "dev-session-secret-change-me"),
+		ServiceName:     stringOrDefault("OTEL_SERVICE_NAME", "comune-api"),
+		OTelEndpoint:    stringOrDefault("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
 	}, nil
 }
 

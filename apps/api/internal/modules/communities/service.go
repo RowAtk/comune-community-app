@@ -213,10 +213,13 @@ func NewService(db *pgxpool.Pool) *Service {
 	}
 }
 
-func (s *Service) Create(ctx context.Context, input CreateCommunityInput) (Community, error) {
+func (s *Service) Create(ctx context.Context, creatorUserID string, input CreateCommunityInput) (Community, error) {
+	creatorUserID = strings.TrimSpace(creatorUserID)
 	input = sanitizeCreateInput(input)
 
 	switch {
+	case creatorUserID == "":
+		return Community{}, ErrUserIDRequired.Wrap(nil)
 	case input.OrganizationID == "":
 		return Community{}, ErrOrganizationIDRequired.Wrap(nil)
 	case input.Name == "":
@@ -227,7 +230,7 @@ func (s *Service) Create(ctx context.Context, input CreateCommunityInput) (Commu
 		return Community{}, ErrInvalidCommunityStatus.Wrap(nil)
 	}
 
-	community, err := insertCommunity(ctx, s.db, input)
+	community, err := insertCommunity(ctx, s.db, creatorUserID, input)
 	if err != nil {
 		if db.IsUniqueViolation(err) {
 			switch {
@@ -254,7 +257,7 @@ func (s *Service) List(ctx context.Context, organizationID string) ([]Community,
 		return nil, ErrListCommunitiesFailed.Wrap(fmt.Errorf("list communities: %w", err))
 	}
 
-	return communities, nil
+	return ensureSlice(communities), nil
 }
 
 func (s *Service) GetByID(ctx context.Context, organizationID string, id string) (Community, error) {
@@ -347,7 +350,7 @@ func (s *Service) ListMembers(ctx context.Context, organizationID string, commun
 		return nil, ErrListMembersFailed.Wrap(fmt.Errorf("list community members: %w", err))
 	}
 
-	return members, nil
+	return ensureSlice(members), nil
 }
 
 func (s *Service) UpdateMember(ctx context.Context, organizationID string, communityID string, actorUserID string, userID string, input UpdateCommunityMemberInput) (CommunityMember, error) {
@@ -438,7 +441,7 @@ func (s *Service) ListInvitations(ctx context.Context, organizationID string, co
 		return nil, ErrListInvitationsFailed.Wrap(fmt.Errorf("list community invitations: %w", err))
 	}
 
-	return invitations, nil
+	return ensureSlice(invitations), nil
 }
 
 func (s *Service) AcceptInvitation(ctx context.Context, params acceptCommunityInvitationParams) (CommunityMember, error) {
@@ -604,4 +607,12 @@ func (s *Service) authorizeMemberUpdate(ctx context.Context, organizationID stri
 	}
 
 	return nil
+}
+
+func ensureSlice[T any](items []T) []T {
+	if items == nil {
+		return []T{}
+	}
+
+	return items
 }

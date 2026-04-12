@@ -6,6 +6,7 @@ import (
 	"comune/apps/api/internal/modules/organizations"
 	"comune/apps/api/internal/platform/config"
 	"comune/apps/api/internal/platform/server"
+	"comune/apps/api/internal/platform/telemetry"
 	"context"
 	"net/http"
 	"time"
@@ -43,6 +44,18 @@ func main() {
 		logger.Info("Successfully connected to database")
 	}
 
+	_, shutdownTelemetry, err := telemetry.Setup(context.Background(), cfg, logger)
+	if err != nil {
+		logger.Fatal("failed to initialize telemetry", zap.Error(err))
+	}
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := shutdownTelemetry(shutdownCtx); err != nil {
+			logger.Error("failed to shutdown telemetry", zap.Error(err))
+		}
+	}()
+
 	authService := auth.NewService(dbPool, cfg.SessionSecret, cfg.SessionDuration)
 	organizationService := organizations.NewService(dbPool)
 	communityService := communities.NewService(dbPool)
@@ -54,6 +67,8 @@ func main() {
 		zap.String("app_env", cfg.AppEnv),
 		zap.String("database_host", dbPool.Config().ConnConfig.Host),
 		zap.Duration("session_duration", cfg.SessionDuration),
+		zap.String("service_name", cfg.ServiceName),
+		zap.Bool("otel_exporter_configured", cfg.OTelEndpoint != ""),
 	)
 
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -62,9 +77,9 @@ func main() {
 }
 
 func newLogger(cfg config.Config) (*zap.Logger, error) {
-	if cfg.IsDevelopment() {
-		return zap.NewDevelopment()
-	}
+	//if cfg.IsDevelopment() {
+	//return zap.NewDevelopment()
+	//}
 
 	return zap.NewProduction()
 }
