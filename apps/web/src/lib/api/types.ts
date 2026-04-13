@@ -21,10 +21,13 @@ export type Community = {
 	updated_at: string;
 };
 
-export type Unit = {
+export interface CommunityResource {
 	id: string;
 	organization_id: string;
 	community_id: string;
+}
+
+export type Unit = CommunityResource & {
 	unit_number: string;
 	block_floor?: string;
 	unit_type?: string;
@@ -34,20 +37,14 @@ export type Unit = {
 	deleted_at?: string | null;
 };
 
-export type Household = {
-	id: string;
-	organization_id: string;
-	community_id: string;
+export type Household = CommunityResource & {
 	unit_id: string;
 	name?: string;
 	created_at: string;
 	updated_at: string;
 };
 
-export type Resident = {
-	id: string;
-	organization_id: string;
-	community_id: string;
+export type Resident = CommunityResource & {
 	unit_id: string;
 	user_id?: string | null;
 	household_id?: string | null;

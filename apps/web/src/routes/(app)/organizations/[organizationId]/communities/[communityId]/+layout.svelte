@@ -1,26 +1,29 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Button } from '$lib/components/ui/button';
 	import { communitySections } from '$lib/features/community-nav';
 
 	let { data, children } = $props();
 
-	const currentPath = $derived(
-		typeof window === 'undefined' ? '' : window.location.pathname.replace(/\/$/, '')
-	);
+	const currentPath = $derived(page.url.pathname.replace(/\/$/, ''));
 </script>
 
-<div class="min-h-screen bg-[linear-gradient(180deg,_#f7f8fc_0%,_#edf2f7_100%)]">
+<div class="min-h-screen bg-[linear-gradient(180deg,#f7f8fc_0%,#edf2f7_100%)]">
 	<div class="mx-auto grid min-h-screen max-w-7xl grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)]">
-		<aside class="border-b border-slate-200 bg-[linear-gradient(180deg,_#0f172a_0%,_#111827_100%)] px-6 py-8 text-slate-100 lg:border-b-0 lg:border-r lg:border-slate-800">
+		<aside
+			class="border-b border-slate-200 bg-[linear-gradient(180deg,#0f172a_0%,#111827_100%)] px-6 py-8 text-slate-100 lg:border-r lg:border-b-0 lg:border-slate-800"
+		>
 			<div class="space-y-6">
 				<div class="space-y-2">
-					<p class="text-xs uppercase tracking-[0.28em] text-slate-400">Comune</p>
+					<p class="text-xs tracking-[0.28em] text-slate-400 uppercase">Comune</p>
 					<h1 class="text-2xl font-semibold tracking-tight">
 						{data.community?.name ?? 'Community workspace'}
 					</h1>
 					<p class="text-sm leading-6 text-slate-400">
-						Organization <span class="font-mono text-[11px]">{data.community?.organization_id ?? data.params?.organizationId}</span>
+						Organization <span class="font-mono text-[11px]"
+							>{data.community?.organization_id ?? data.routeParams?.organizationId}</span
+						>
 					</p>
 				</div>
 
@@ -50,7 +53,11 @@
 					{/each}
 				</nav>
 
-				<Button href="/" variant="ghost" class="w-full justify-start text-slate-300 hover:bg-slate-800 hover:text-white">
+				<Button
+					href="/"
+					variant="ghost"
+					class="w-full justify-start text-slate-300 hover:bg-slate-800 hover:text-white"
+				>
 					Switch Community
 				</Button>
 			</div>
@@ -58,7 +65,9 @@
 
 		<main class="px-6 py-8 lg:px-10">
 			{#if data.apiError}
-				<div class="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+				<div
+					class="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+				>
 					{data.apiError}
 				</div>
 			{/if}
