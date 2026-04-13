@@ -53,6 +53,7 @@ export type Resident = CommunityResource & {
 	email?: string;
 	phone?: string;
 	resident_type: string;
+	household_role?: string | null;
 	status: string;
 	is_primary_contact: boolean;
 	move_in_date?: string | null;

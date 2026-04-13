@@ -3,7 +3,9 @@ package httpx
 import (
 	"comune/apps/api/internal/platform/apperror"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"strings"
 
 	"go.uber.org/zap"
 )
@@ -76,14 +78,37 @@ func WriteAppError(logger *zap.Logger, w http.ResponseWriter, r *http.Request, e
 		status = http.StatusConflict
 	}
 
-	if appErr.Kind == apperror.KindInternal && logger != nil {
-		logger.Error(
-			"http request failed",
+	if logger != nil {
+		fields := []zap.Field{
 			zap.String("method", r.Method),
 			zap.String("path", r.URL.Path),
-			zap.Error(err),
+			zap.String("error_kind", string(appErr.Kind)),
+			zap.String("error_code", appErr.Code),
+			zap.String("error_message", appErr.Message),
+			zap.String("error_chain", formatErrorChain(err)),
+		}
+		if appErr.Err != nil {
+			fields = append(fields, zap.NamedError("cause", appErr.Err))
+		}
+
+		logger.Error(
+			"http request failed",
+			fields...,
 		)
 	}
 
 	WriteError(w, status, appErr.Code, appErr.Message)
+}
+
+func formatErrorChain(err error) string {
+	if err == nil {
+		return ""
+	}
+
+	var chain []string
+	for current := err; current != nil; current = errors.Unwrap(current) {
+		chain = append(chain, current.Error())
+	}
+
+	return strings.Join(chain, " | caused by: ")
 }

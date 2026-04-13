@@ -1,4 +1,4 @@
-.PHONY: help install install-api install-web api web db-up db-down db-logs db-ps db-init db-seed db-init-docker db-seed-docker
+.PHONY: help install install-api install-web api web db-up db-down db-logs db-ps db-init db-seed db-init-docker db-seed-docker db-docker-run
 
 COMPOSE := docker compose -f database/docker-compose.yml
 API_DIR := apps/api
@@ -6,6 +6,14 @@ WEB_DIR := apps/web
 DB_CONTAINER := db
 DB_USER := user
 DB_NAME := comune_dev
+SCRIPT ?=
+
+ifneq ($(filter db-docker-run,$(MAKECMDGOALS)),)
+SCRIPT := $(or $(SCRIPT),$(word 2,$(MAKECMDGOALS)))
+ifneq ($(strip $(word 2,$(MAKECMDGOALS))),)
+$(eval $(word 2,$(MAKECMDGOALS)):;@:)
+endif
+endif
 
 help:
 	@echo "Available targets:"
@@ -22,6 +30,8 @@ help:
 	@echo "  make db-seed      Apply the local development seed data using local psql and DATABASE_URL"
 	@echo "  make db-init-docker Apply the SQL schema using psql inside the Docker db container"
 	@echo "  make db-seed-docker Apply the local development seed using psql inside the Docker db container"
+	@echo "  make db-docker-run SCRIPT=database/file.sql"
+	@echo "  make db-docker-run database/file.sql"
 
 install: install-api install-web
 
@@ -60,3 +70,15 @@ db-init-docker:
 
 db-seed-docker:
 	$(COMPOSE) exec -T $(DB_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME) -f /dev/stdin < database/seed.sql
+
+db-docker-run:
+	@if [ -z "$(SCRIPT)" ]; then \
+		echo "Usage: make db-docker-run SCRIPT=database/file.sql"; \
+		echo "   or: make db-docker-run database/file.sql"; \
+		exit 1; \
+	fi
+	@if [ ! -f "$(SCRIPT)" ]; then \
+		echo "SQL script not found: $(SCRIPT)"; \
+		exit 1; \
+	fi
+	$(COMPOSE) exec -T $(DB_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME) -f /dev/stdin < "$(SCRIPT)"

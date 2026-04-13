@@ -2,18 +2,19 @@ package residents
 
 import (
 	"context"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func insert(ctx context.Context, db *pgxpool.Pool, input CreateInput) (Resident, error) {
+func insert(ctx context.Context, db *pgxpool.Pool, input CreateInput, moveInDate *time.Time, moveOutDate *time.Time) (Resident, error) {
 	const query = `
 		INSERT INTO residents (
-			organization_id, community_id, unit_id, user_id, household_id, first_name, last_name, email, phone, resident_type, status, is_primary_contact, move_in_date, move_out_date
+			organization_id, community_id, unit_id, user_id, household_id, first_name, last_name, email, phone, resident_type, household_role, status, is_primary_contact, move_in_date, move_out_date
 		)
-		VALUES ($1, $2, $3, NULLIF($4, '')::uuid, NULLIF($5, '')::uuid, $6, $7, NULLIF($8, ''), NULLIF($9, ''), $10, $11, $12, $13, $14)
-		RETURNING id, organization_id, community_id, unit_id, user_id, household_id, first_name, last_name, COALESCE(email, ''), COALESCE(phone, ''), resident_type, status, is_primary_contact, move_in_date, move_out_date, created_at, updated_at, deleted_at
+		VALUES ($1, $2, $3, NULLIF($4, '')::uuid, NULLIF($5, '')::uuid, $6, $7, NULLIF($8, ''), NULLIF($9, ''), $10, NULLIF($11, ''), $12, $13, $14, $15)
+		RETURNING id, organization_id, community_id, unit_id, user_id, household_id, first_name, last_name, COALESCE(email, ''), COALESCE(phone, ''), resident_type, household_role, status, is_primary_contact, move_in_date, move_out_date, created_at, updated_at, deleted_at
 	`
 
 	var resident Resident
@@ -30,10 +31,11 @@ func insert(ctx context.Context, db *pgxpool.Pool, input CreateInput) (Resident,
 		input.Email,
 		input.Phone,
 		input.ResidentType,
+		input.HouseholdRole,
 		input.Status,
 		input.IsPrimaryContact,
-		input.MoveInDate,
-		input.MoveOutDate,
+		moveInDate,
+		moveOutDate,
 	).Scan(
 		&resident.ID,
 		&resident.OrganizationID,
@@ -46,6 +48,7 @@ func insert(ctx context.Context, db *pgxpool.Pool, input CreateInput) (Resident,
 		&resident.Email,
 		&resident.Phone,
 		&resident.ResidentType,
+		&resident.HouseholdRole,
 		&resident.Status,
 		&resident.IsPrimaryContact,
 		&resident.MoveInDate,
@@ -60,7 +63,7 @@ func insert(ctx context.Context, db *pgxpool.Pool, input CreateInput) (Resident,
 
 func list(ctx context.Context, db *pgxpool.Pool, organizationID string, communityID string) ([]Resident, error) {
 	const query = `
-		SELECT id, organization_id, community_id, unit_id, user_id, household_id, first_name, last_name, COALESCE(email, ''), COALESCE(phone, ''), resident_type, status, is_primary_contact, move_in_date, move_out_date, created_at, updated_at, deleted_at
+		SELECT id, organization_id, community_id, unit_id, user_id, household_id, first_name, last_name, COALESCE(email, ''), COALESCE(phone, ''), resident_type, household_role, status, is_primary_contact, move_in_date, move_out_date, created_at, updated_at, deleted_at
 		FROM residents
 		WHERE organization_id = $1 AND community_id = $2 AND deleted_at IS NULL
 		ORDER BY created_at DESC
@@ -87,6 +90,7 @@ func list(ctx context.Context, db *pgxpool.Pool, organizationID string, communit
 			&resident.Email,
 			&resident.Phone,
 			&resident.ResidentType,
+			&resident.HouseholdRole,
 			&resident.Status,
 			&resident.IsPrimaryContact,
 			&resident.MoveInDate,
@@ -105,7 +109,7 @@ func list(ctx context.Context, db *pgxpool.Pool, organizationID string, communit
 
 func findByID(ctx context.Context, db *pgxpool.Pool, organizationID string, communityID string, residentID string) (Resident, error) {
 	const query = `
-		SELECT id, organization_id, community_id, unit_id, user_id, household_id, first_name, last_name, COALESCE(email, ''), COALESCE(phone, ''), resident_type, status, is_primary_contact, move_in_date, move_out_date, created_at, updated_at, deleted_at
+		SELECT id, organization_id, community_id, unit_id, user_id, household_id, first_name, last_name, COALESCE(email, ''), COALESCE(phone, ''), resident_type, household_role, status, is_primary_contact, move_in_date, move_out_date, created_at, updated_at, deleted_at
 		FROM residents
 		WHERE organization_id = $1 AND community_id = $2 AND id = $3 AND deleted_at IS NULL
 	`
@@ -123,6 +127,7 @@ func findByID(ctx context.Context, db *pgxpool.Pool, organizationID string, comm
 		&resident.Email,
 		&resident.Phone,
 		&resident.ResidentType,
+		&resident.HouseholdRole,
 		&resident.Status,
 		&resident.IsPrimaryContact,
 		&resident.MoveInDate,
@@ -135,7 +140,16 @@ func findByID(ctx context.Context, db *pgxpool.Pool, organizationID string, comm
 	return resident, err
 }
 
-func update(ctx context.Context, db *pgxpool.Pool, organizationID string, communityID string, residentID string, input UpdateInput) (Resident, error) {
+func update(
+	ctx context.Context,
+	db *pgxpool.Pool,
+	organizationID string,
+	communityID string,
+	residentID string,
+	input UpdateInput,
+	parsedMoveInDate **time.Time,
+	parsedMoveOutDate **time.Time,
+) (Resident, error) {
 	const query = `
 		UPDATE residents
 		SET
@@ -147,23 +161,24 @@ func update(ctx context.Context, db *pgxpool.Pool, organizationID string, commun
 			email = CASE WHEN $9 IS NULL THEN email ELSE NULLIF($9, '') END,
 			phone = CASE WHEN $10 IS NULL THEN phone ELSE NULLIF($10, '') END,
 			resident_type = COALESCE($11, resident_type),
-			status = COALESCE($12, status),
-			is_primary_contact = COALESCE($13, is_primary_contact),
-			move_in_date = CASE WHEN $14 IS NULL THEN move_in_date ELSE $14 END,
-			move_out_date = CASE WHEN $15 IS NULL THEN move_out_date ELSE $15 END
+			household_role = CASE WHEN $12 IS NULL THEN household_role ELSE NULLIF($12, '') END,
+			status = COALESCE($13, status),
+			is_primary_contact = COALESCE($14, is_primary_contact),
+			move_in_date = CASE WHEN $15 IS NULL THEN move_in_date ELSE $15 END,
+			move_out_date = CASE WHEN $16 IS NULL THEN move_out_date ELSE $16 END
 		WHERE organization_id = $1 AND community_id = $2 AND id = $3 AND deleted_at IS NULL
-		RETURNING id, organization_id, community_id, unit_id, user_id, household_id, first_name, last_name, COALESCE(email, ''), COALESCE(phone, ''), resident_type, status, is_primary_contact, move_in_date, move_out_date, created_at, updated_at, deleted_at
+		RETURNING id, organization_id, community_id, unit_id, user_id, household_id, first_name, last_name, COALESCE(email, ''), COALESCE(phone, ''), resident_type, household_role, status, is_primary_contact, move_in_date, move_out_date, created_at, updated_at, deleted_at
 	`
 
 	var (
-		moveInDate  any
-		moveOutDate any
+		moveInDateArg  any
+		moveOutDateArg any
 	)
-	if input.MoveInDate != nil {
-		moveInDate = *input.MoveInDate
+	if parsedMoveInDate != nil {
+		moveInDateArg = *parsedMoveInDate
 	}
-	if input.MoveOutDate != nil {
-		moveOutDate = *input.MoveOutDate
+	if parsedMoveOutDate != nil {
+		moveOutDateArg = *parsedMoveOutDate
 	}
 
 	var resident Resident
@@ -181,10 +196,11 @@ func update(ctx context.Context, db *pgxpool.Pool, organizationID string, commun
 		input.Email,
 		input.Phone,
 		input.ResidentType,
+		input.HouseholdRole,
 		input.Status,
 		input.IsPrimaryContact,
-		moveInDate,
-		moveOutDate,
+		moveInDateArg,
+		moveOutDateArg,
 	).Scan(
 		&resident.ID,
 		&resident.OrganizationID,
@@ -197,6 +213,7 @@ func update(ctx context.Context, db *pgxpool.Pool, organizationID string, commun
 		&resident.Email,
 		&resident.Phone,
 		&resident.ResidentType,
+		&resident.HouseholdRole,
 		&resident.Status,
 		&resident.IsPrimaryContact,
 		&resident.MoveInDate,

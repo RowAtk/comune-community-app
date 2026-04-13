@@ -309,6 +309,7 @@ CREATE TABLE IF NOT EXISTS residents (
     email VARCHAR(255),
     phone VARCHAR(20),
     resident_type VARCHAR(50) NOT NULL,
+    household_role VARCHAR(50),
     status VARCHAR(50) NOT NULL DEFAULT 'ACTIVE',
     is_primary_contact BOOLEAN NOT NULL DEFAULT FALSE,
     move_in_date DATE,
@@ -318,6 +319,10 @@ CREATE TABLE IF NOT EXISTS residents (
     deleted_at TIMESTAMPTZ,
     CONSTRAINT chk_residents_type CHECK (
         resident_type IN ('OWNER', 'TENANT', 'DEPENDENT', 'OCCUPANT')
+    ),
+    CONSTRAINT chk_residents_household_role CHECK (
+        household_role IS NULL
+        OR household_role IN ('HOUSEHOLD_ADMIN', 'HOUSEHOLD_MEMBER', 'HOUSEHOLD_VIEWER')
     ),
     CONSTRAINT chk_residents_status CHECK (
         status IN ('ACTIVE', 'INACTIVE', 'PENDING', 'MOVED_OUT')

@@ -685,6 +685,10 @@ CREATE TABLE IF NOT EXISTS residents (
     -- OWNER, TENANT, DEPENDENT, OCCUPANT, etc.
     resident_type VARCHAR(50) NOT NULL,
 
+    -- Optional application access level within the household.
+    -- Null means the resident has the lowest/default household privileges.
+    household_role VARCHAR(50),
+
     -- Current lifecycle state.
     status VARCHAR(50) NOT NULL DEFAULT 'ACTIVE',
 
@@ -702,6 +706,11 @@ CREATE TABLE IF NOT EXISTS residents (
 
     CONSTRAINT chk_residents_type CHECK (
         resident_type IN ('OWNER', 'TENANT', 'DEPENDENT', 'OCCUPANT')
+    ),
+
+    CONSTRAINT chk_residents_household_role CHECK (
+        household_role IS NULL
+        OR household_role IN ('HOUSEHOLD_ADMIN', 'HOUSEHOLD_MEMBER', 'HOUSEHOLD_VIEWER')
     ),
 
     CONSTRAINT chk_residents_status CHECK (

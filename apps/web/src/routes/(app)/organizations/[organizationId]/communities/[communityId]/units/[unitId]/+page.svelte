@@ -210,6 +210,11 @@
 													</div>
 													<Badge variant={statusVariant(resident.status)}>{resident.status}</Badge>
 												</div>
+												{#if resident.household_role}
+													<div class="flex flex-wrap gap-2">
+														<Badge variant="outline">{resident.household_role}</Badge>
+													</div>
+												{/if}
 												<div class="space-y-1 text-sm text-slate-600">
 													<p>{resident.email || 'No email on file'}</p>
 													<p>{resident.phone || 'No phone on file'}</p>

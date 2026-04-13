@@ -20,6 +20,12 @@ var validTypes = map[string]struct{}{
 	"OCCUPANT":  {},
 }
 
+var validHouseholdRoles = map[string]struct{}{
+	"HOUSEHOLD_ADMIN":  {},
+	"HOUSEHOLD_MEMBER": {},
+	"HOUSEHOLD_VIEWER": {},
+}
+
 var validStatuses = map[string]struct{}{
 	"ACTIVE":    {},
 	"INACTIVE":  {},
@@ -67,6 +73,11 @@ var (
 		Kind:    apperror.KindValidation,
 		Code:    "invalid_resident_type",
 		Message: "invalid resident type",
+	}
+	ErrInvalidHouseholdRole = apperror.Error{
+		Kind:    apperror.KindValidation,
+		Code:    "invalid_household_role",
+		Message: "invalid household role",
 	}
 	ErrInvalidResidentStatus = apperror.Error{
 		Kind:    apperror.KindValidation,
@@ -131,6 +142,8 @@ func NewService(db *pgxpool.Pool) *Service {
 
 func (s *Service) Create(ctx context.Context, input CreateInput) (Resident, error) {
 	input = sanitizeCreateInput(input)
+	moveInDate := createMoveInDate(input)
+	moveOutDate := createMoveOutDate(input)
 
 	switch {
 	case input.OrganizationID == "":
@@ -147,9 +160,11 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (Resident, erro
 		return Resident{}, ErrResidentTypeRequired.Wrap(nil)
 	case !isValidType(input.ResidentType):
 		return Resident{}, ErrInvalidResidentType.Wrap(nil)
+	case input.HouseholdRole != "" && !isValidHouseholdRole(input.HouseholdRole):
+		return Resident{}, ErrInvalidHouseholdRole.Wrap(nil)
 	case !isValidStatus(input.Status):
 		return Resident{}, ErrInvalidResidentStatus.Wrap(nil)
-	case !moveDatesAreValid(input.MoveInDate, input.MoveOutDate):
+	case !moveDatesAreValid(moveInDate, moveOutDate):
 		return Resident{}, ErrInvalidMoveDates.Wrap(nil)
 	}
 
@@ -157,7 +172,7 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (Resident, erro
 		return Resident{}, err
 	}
 
-	resident, err := insert(ctx, s.db, input)
+	resident, err := insert(ctx, s.db, input, moveInDate, moveOutDate)
 	if err != nil {
 		if isPrimaryContactConflict(err) {
 			return Resident{}, ErrPrimaryContactAlreadyAssigned.Wrap(fmt.Errorf("create resident: %w", err))
@@ -249,17 +264,22 @@ func (s *Service) Update(ctx context.Context, organizationID string, communityID
 			return Resident{}, ErrInvalidResidentType.Wrap(nil)
 		}
 	}
+	if input.HouseholdRole != nil && *input.HouseholdRole != "" && !isValidHouseholdRole(*input.HouseholdRole) {
+		return Resident{}, ErrInvalidHouseholdRole.Wrap(nil)
+	}
 	if input.Status != nil && !isValidStatus(*input.Status) {
 		return Resident{}, ErrInvalidResidentStatus.Wrap(nil)
 	}
 
 	effectiveMoveInDate := current.MoveInDate
-	if input.MoveInDate != nil {
-		effectiveMoveInDate = *input.MoveInDate
+	parsedMoveInDate := updateMoveInDate(input)
+	if parsedMoveInDate != nil {
+		effectiveMoveInDate = *parsedMoveInDate
 	}
 	effectiveMoveOutDate := current.MoveOutDate
-	if input.MoveOutDate != nil {
-		effectiveMoveOutDate = *input.MoveOutDate
+	parsedMoveOutDate := updateMoveOutDate(input)
+	if parsedMoveOutDate != nil {
+		effectiveMoveOutDate = *parsedMoveOutDate
 	}
 	if !moveDatesAreValid(effectiveMoveInDate, effectiveMoveOutDate) {
 		return Resident{}, ErrInvalidMoveDates.Wrap(nil)
@@ -282,7 +302,7 @@ func (s *Service) Update(ctx context.Context, organizationID string, communityID
 		return Resident{}, err
 	}
 
-	resident, err := update(ctx, s.db, organizationID, communityID, residentID, input)
+	resident, err := update(ctx, s.db, organizationID, communityID, residentID, input, parsedMoveInDate, parsedMoveOutDate)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return Resident{}, ErrResidentNotFound.Wrap(nil)
@@ -356,6 +376,7 @@ func sanitizeCreateInput(input CreateInput) CreateInput {
 	input.Email = strings.ToLower(strings.TrimSpace(input.Email))
 	input.Phone = strings.TrimSpace(input.Phone)
 	input.ResidentType = strings.ToUpper(strings.TrimSpace(input.ResidentType))
+	input.HouseholdRole = strings.ToUpper(strings.TrimSpace(input.HouseholdRole))
 	input.Status = strings.ToUpper(strings.TrimSpace(input.Status))
 
 	if input.Status == "" {
@@ -398,6 +419,10 @@ func sanitizeUpdateInput(input UpdateInput) UpdateInput {
 		value := strings.ToUpper(strings.TrimSpace(*input.ResidentType))
 		input.ResidentType = &value
 	}
+	if input.HouseholdRole != nil {
+		value := strings.ToUpper(strings.TrimSpace(*input.HouseholdRole))
+		input.HouseholdRole = &value
+	}
 	if input.Status != nil {
 		value := strings.ToUpper(strings.TrimSpace(*input.Status))
 		input.Status = &value
@@ -406,8 +431,45 @@ func sanitizeUpdateInput(input UpdateInput) UpdateInput {
 	return input
 }
 
+func createMoveInDate(input CreateInput) *time.Time {
+	if input.MoveInDate == nil {
+		return nil
+	}
+
+	return &input.MoveInDate.Time
+}
+
+func createMoveOutDate(input CreateInput) *time.Time {
+	if input.MoveOutDate == nil {
+		return nil
+	}
+
+	return &input.MoveOutDate.Time
+}
+
+func updateMoveInDate(input UpdateInput) **time.Time {
+	if input.MoveInDate == nil {
+		return nil
+	}
+
+	return &input.MoveInDate.Value
+}
+
+func updateMoveOutDate(input UpdateInput) **time.Time {
+	if input.MoveOutDate == nil {
+		return nil
+	}
+
+	return &input.MoveOutDate.Value
+}
+
 func isValidType(value string) bool {
 	_, ok := validTypes[value]
+	return ok
+}
+
+func isValidHouseholdRole(value string) bool {
+	_, ok := validHouseholdRoles[value]
 	return ok
 }
 
