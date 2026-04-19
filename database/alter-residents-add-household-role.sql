@@ -2,7 +2,7 @@ ALTER TABLE residents
 ADD COLUMN IF NOT EXISTS household_role VARCHAR(50);
 
 ALTER TABLE residents
-DROP CONSTRAINT IF EXISTS chk_residents_household_role;
+DROP CONSTRAINT IF EXISTS chk_residents_hoF/usehold_role;
 
 ALTER TABLE residents
 ADD CONSTRAINT chk_residents_household_role CHECK (
