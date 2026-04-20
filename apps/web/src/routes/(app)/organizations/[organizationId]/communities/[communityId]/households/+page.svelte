@@ -14,6 +14,10 @@
 	const householdsBasePath = $derived(
 		`/organizations/${page.params.organizationId}/communities/${page.params.communityId}/households`
 	);
+
+	function getUnitLabel(unitId: string) {
+		return data.units.find((unit) => unit.id === unitId)?.unit_number || 'Unknown unit';
+	}
 </script>
 
 <ResourceCollection
@@ -66,7 +70,7 @@
 				<CardDescription>Occupancy group for unit assignment.</CardDescription>
 			</div>
 			<div class="flex flex-wrap gap-2">
-				<Badge variant="outline">Unit {household.unit_id}</Badge>
+				<Badge variant="outline">Unit {getUnitLabel(household.unit_id)}</Badge>
 				<Badge variant="secondary">Household</Badge>
 			</div>
 			<Button href={`${householdsBasePath}/${household.id}`} variant="outline" size="sm" class="self-start">

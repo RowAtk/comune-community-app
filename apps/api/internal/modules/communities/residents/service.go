@@ -134,6 +134,66 @@ var (
 		Code:    "delete_resident_failed",
 		Message: "internal server error",
 	}
+	ErrInvitationNotFound = apperror.Error{
+		Kind:    apperror.KindNotFound,
+		Code:    "resident_invitation_not_found",
+		Message: "resident invitation not found",
+	}
+	ErrInvitationExpired = apperror.Error{
+		Kind:    apperror.KindValidation,
+		Code:    "resident_invitation_expired",
+		Message: "resident invitation has expired",
+	}
+	ErrInvitationAlreadyAccepted = apperror.Error{
+		Kind:    apperror.KindConflict,
+		Code:    "resident_invitation_already_accepted",
+		Message: "resident invitation has already been accepted",
+	}
+	ErrInvitationSelfAcceptance = apperror.Error{
+		Kind:    apperror.KindValidation,
+		Code:    "resident_invitation_self_acceptance_blocked",
+		Message: "this invite was created by your account and should be sent to the resident instead of opened by you",
+	}
+	ErrResidentAlreadyLinked = apperror.Error{
+		Kind:    apperror.KindConflict,
+		Code:    "resident_user_already_linked",
+		Message: "resident is already linked to another user",
+	}
+	ErrResidentNotLinked = apperror.Error{
+		Kind:    apperror.KindValidation,
+		Code:    "resident_user_not_linked",
+		Message: "resident is not linked to a user account",
+	}
+	ErrAuthenticationRequired = apperror.Error{
+		Kind:    apperror.KindUnauthorized,
+		Code:    "authentication_required",
+		Message: "authentication is required",
+	}
+	ErrInsufficientInvitationPermissions = apperror.Error{
+		Kind:    apperror.KindUnauthorized,
+		Code:    "insufficient_resident_invitation_permissions",
+		Message: "insufficient permissions to manage resident invitations",
+	}
+	ErrCreateInvitationFailed = apperror.Error{
+		Kind:    apperror.KindInternal,
+		Code:    "create_resident_invitation_failed",
+		Message: "internal server error",
+	}
+	ErrListInvitationsFailed = apperror.Error{
+		Kind:    apperror.KindInternal,
+		Code:    "list_resident_invitations_failed",
+		Message: "internal server error",
+	}
+	ErrGetInvitationFailed = apperror.Error{
+		Kind:    apperror.KindInternal,
+		Code:    "get_resident_invitation_failed",
+		Message: "internal server error",
+	}
+	ErrAcceptInvitationFailed = apperror.Error{
+		Kind:    apperror.KindInternal,
+		Code:    "accept_resident_invitation_failed",
+		Message: "internal server error",
+	}
 )
 
 func NewService(db *pgxpool.Pool) *Service {
@@ -341,6 +401,207 @@ func (s *Service) Delete(ctx context.Context, organizationID string, communityID
 	return nil
 }
 
+func (s *Service) UnlinkUser(ctx context.Context, organizationID string, communityID string, residentID string, actorUserID string) (Resident, error) {
+	organizationID = strings.TrimSpace(organizationID)
+	communityID = strings.TrimSpace(communityID)
+	residentID = strings.TrimSpace(residentID)
+	actorUserID = strings.TrimSpace(actorUserID)
+
+	switch {
+	case organizationID == "":
+		return Resident{}, ErrOrganizationIDRequired.Wrap(nil)
+	case communityID == "":
+		return Resident{}, ErrCommunityIDRequired.Wrap(nil)
+	case residentID == "":
+		return Resident{}, ErrResidentIDRequired.Wrap(nil)
+	case actorUserID == "":
+		return Resident{}, ErrAuthenticationRequired.Wrap(nil)
+	}
+
+	if err := s.authorizeInvitationManagement(ctx, organizationID, communityID, actorUserID); err != nil {
+		return Resident{}, err
+	}
+
+	resident, err := findByID(ctx, s.db, organizationID, communityID, residentID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Resident{}, ErrResidentNotFound.Wrap(nil)
+		}
+		return Resident{}, ErrUpdateFailed.Wrap(fmt.Errorf("load resident for unlink: %w", err))
+	}
+
+	if resident.UserID == nil || strings.TrimSpace(*resident.UserID) == "" {
+		return Resident{}, ErrResidentNotLinked.Wrap(nil)
+	}
+
+	blank := ""
+	resident, err = update(ctx, s.db, organizationID, communityID, residentID, UpdateInput{UserID: &blank}, nil, nil)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return Resident{}, ErrResidentNotFound.Wrap(nil)
+		}
+		return Resident{}, ErrUpdateFailed.Wrap(fmt.Errorf("unlink resident user: %w", err))
+	}
+
+	return resident, nil
+}
+
+func (s *Service) CreateInvitation(ctx context.Context, organizationID string, communityID string, residentID string, invitedBy string, input CreateInvitationInput) (ResidentInvitation, error) {
+	organizationID = strings.TrimSpace(organizationID)
+	communityID = strings.TrimSpace(communityID)
+	residentID = strings.TrimSpace(residentID)
+	invitedBy = strings.TrimSpace(invitedBy)
+
+	switch {
+	case organizationID == "":
+		return ResidentInvitation{}, ErrOrganizationIDRequired.Wrap(nil)
+	case communityID == "":
+		return ResidentInvitation{}, ErrCommunityIDRequired.Wrap(nil)
+	case residentID == "":
+		return ResidentInvitation{}, ErrResidentIDRequired.Wrap(nil)
+	case invitedBy == "":
+		return ResidentInvitation{}, ErrAuthenticationRequired.Wrap(nil)
+	}
+
+	if err := s.authorizeInvitationManagement(ctx, organizationID, communityID, invitedBy); err != nil {
+		return ResidentInvitation{}, err
+	}
+
+	resident, err := findByID(ctx, s.db, organizationID, communityID, residentID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ResidentInvitation{}, ErrResidentNotFound.Wrap(nil)
+		}
+		return ResidentInvitation{}, ErrCreateInvitationFailed.Wrap(fmt.Errorf("load resident for invitation: %w", err))
+	}
+	if resident.UserID != nil && strings.TrimSpace(*resident.UserID) != "" {
+		return ResidentInvitation{}, ErrResidentAlreadyLinked.Wrap(nil)
+	}
+
+	if input.ExpiresAt == nil {
+		expiresAt := time.Now().UTC().Add(7 * 24 * time.Hour)
+		input.ExpiresAt = &expiresAt
+	}
+
+	invitation, err := insertInvitation(ctx, s.db, organizationID, communityID, residentID, invitedBy, input)
+	if err != nil {
+		return ResidentInvitation{}, ErrCreateInvitationFailed.Wrap(fmt.Errorf("create resident invitation: %w", err))
+	}
+
+	return invitation, nil
+}
+
+func (s *Service) ListInvitations(ctx context.Context, organizationID string, communityID string, residentID string, actorUserID string) ([]ResidentInvitation, error) {
+	organizationID = strings.TrimSpace(organizationID)
+	communityID = strings.TrimSpace(communityID)
+	residentID = strings.TrimSpace(residentID)
+	actorUserID = strings.TrimSpace(actorUserID)
+
+	switch {
+	case organizationID == "":
+		return nil, ErrOrganizationIDRequired.Wrap(nil)
+	case communityID == "":
+		return nil, ErrCommunityIDRequired.Wrap(nil)
+	case residentID == "":
+		return nil, ErrResidentIDRequired.Wrap(nil)
+	case actorUserID == "":
+		return nil, ErrAuthenticationRequired.Wrap(nil)
+	}
+
+	if err := s.authorizeInvitationManagement(ctx, organizationID, communityID, actorUserID); err != nil {
+		return nil, err
+	}
+
+	invitations, err := listInvitations(ctx, s.db, organizationID, communityID, residentID)
+	if err != nil {
+		return nil, ErrListInvitationsFailed.Wrap(fmt.Errorf("list resident invitations: %w", err))
+	}
+
+	return ensureSlice(invitations), nil
+}
+
+func (s *Service) GetInvitationPreview(ctx context.Context, token string) (ResidentInvitationPreview, error) {
+	token = strings.TrimSpace(token)
+	if token == "" {
+		return ResidentInvitationPreview{}, ErrInvitationNotFound.Wrap(nil)
+	}
+
+	preview, err := findInvitationPreviewByToken(ctx, s.db, token)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ResidentInvitationPreview{}, ErrInvitationNotFound.Wrap(nil)
+		}
+		return ResidentInvitationPreview{}, ErrGetInvitationFailed.Wrap(fmt.Errorf("get resident invitation preview: %w", err))
+	}
+
+	return preview, nil
+}
+
+func (s *Service) AcceptInvitation(ctx context.Context, params acceptInvitationParams) (Resident, error) {
+	params.UserID = strings.TrimSpace(params.UserID)
+	params.Token = strings.TrimSpace(params.Token)
+
+	switch {
+	case params.UserID == "":
+		return Resident{}, ErrAuthenticationRequired.Wrap(nil)
+	case params.Token == "":
+		return Resident{}, ErrInvitationNotFound.Wrap(nil)
+	}
+
+	var resident Resident
+	err := db.RunInTx(ctx, s.db, func(tx pgx.Tx) error {
+		invitation, err := findInvitationByToken(ctx, tx, params.Token)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrInvitationNotFound.Wrap(nil)
+			}
+			return ErrAcceptInvitationFailed.Wrap(fmt.Errorf("find resident invitation: %w", err))
+		}
+
+		switch {
+		case invitation.AcceptedAt != nil:
+			return ErrInvitationAlreadyAccepted.Wrap(nil)
+		case time.Now().UTC().After(invitation.ExpiresAt):
+			return ErrInvitationExpired.Wrap(nil)
+		case invitation.InvitedBy != nil && strings.TrimSpace(*invitation.InvitedBy) == params.UserID:
+			return ErrInvitationSelfAcceptance.Wrap(nil)
+		}
+
+		existingUserID, err := findActiveUserIDByResident(ctx, tx, invitation.OrganizationID, invitation.CommunityID, invitation.ResidentID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrResidentNotFound.Wrap(nil)
+			}
+			return ErrAcceptInvitationFailed.Wrap(fmt.Errorf("load resident link state: %w", err))
+		}
+		if existingUserID != nil && strings.TrimSpace(*existingUserID) != "" && strings.TrimSpace(*existingUserID) != params.UserID {
+			return ErrResidentAlreadyLinked.Wrap(nil)
+		}
+
+		if err := acceptInvitation(ctx, tx, invitation, params.UserID); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrInvitationAlreadyAccepted.Wrap(nil)
+			}
+			return ErrAcceptInvitationFailed.Wrap(fmt.Errorf("accept resident invitation: %w", err))
+		}
+
+		resident, err = findByID(ctx, tx, invitation.OrganizationID, invitation.CommunityID, invitation.ResidentID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrResidentNotFound.Wrap(nil)
+			}
+			return ErrAcceptInvitationFailed.Wrap(fmt.Errorf("load accepted resident: %w", err))
+		}
+
+		return nil
+	})
+	if err != nil {
+		return Resident{}, err
+	}
+
+	return resident, nil
+}
+
 func (s *Service) validateRelationships(ctx context.Context, organizationID string, communityID string, unitID string, householdID string) error {
 	ok, err := unitExists(ctx, s.db, organizationID, communityID, unitID)
 	if err != nil {
@@ -360,6 +621,26 @@ func (s *Service) validateRelationships(ctx context.Context, organizationID stri
 	}
 	if !ok || householdUnitID != unitID {
 		return ErrResidentHouseholdMismatch.Wrap(nil)
+	}
+
+	return nil
+}
+
+func (s *Service) authorizeInvitationManagement(ctx context.Context, organizationID string, communityID string, actorUserID string) error {
+	orgRole, err := findOrganizationRoleForUser(ctx, s.db, organizationID, actorUserID)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return ErrCreateInvitationFailed.Wrap(fmt.Errorf("load organization role: %w", err))
+	}
+
+	communityRole, err := findCommunityRoleForUser(ctx, s.db, organizationID, communityID, actorUserID)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return ErrCreateInvitationFailed.Wrap(fmt.Errorf("load community role: %w", err))
+	}
+
+	isOrgPrivileged := orgRole == "OWNER" || orgRole == "ORG_ADMIN"
+	isCommunityAdmin := communityRole == "COMMUNITY_ADMIN"
+	if !isOrgPrivileged && !isCommunityAdmin {
+		return ErrInsufficientInvitationPermissions.Wrap(nil)
 	}
 
 	return nil

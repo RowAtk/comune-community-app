@@ -122,13 +122,9 @@
 			<Card>
 				<CardHeader>
 					<CardTitle>Record Metadata</CardTitle>
-					<CardDescription>Useful identifiers for support and troubleshooting.</CardDescription>
+					<CardDescription>Useful timing information for this unit record.</CardDescription>
 				</CardHeader>
 				<CardContent class="space-y-4 text-sm text-slate-600">
-					<div>
-						<p class="text-xs font-medium tracking-[0.2em] text-slate-400 uppercase">Unit ID</p>
-						<p class="mt-1 font-mono text-[13px] text-slate-900">{data.unit.id}</p>
-					</div>
 					<div>
 						<p class="text-xs font-medium tracking-[0.2em] text-slate-400 uppercase">Created</p>
 						<p class="mt-1 text-slate-900">{new Date(data.unit.created_at).toLocaleString()}</p>

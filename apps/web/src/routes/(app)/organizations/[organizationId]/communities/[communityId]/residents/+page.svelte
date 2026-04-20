@@ -219,9 +219,17 @@
 				</div>
 			{/if}
 			<div class="space-y-1 text-sm text-slate-600">
-				<p>{resident.email || 'No email on file'}</p>
-				<p>{resident.phone || 'No phone on file'}</p>
+				<p>{resident.linked_user_email || resident.email || 'No email on file'}</p>
+				<p>{resident.linked_user_phone || resident.phone || 'No phone on file'}</p>
 			</div>
+			<Button
+				href={`${communityBasePath}/residents/${resident.id}`}
+				variant="outline"
+				size="sm"
+				class="self-start"
+			>
+				View Details
+			</Button>
 		</ResourceListItemCard>
 	{/snippet}
 </ResourceCollection>

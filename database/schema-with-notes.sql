@@ -746,7 +746,66 @@ ON residents(household_id)
 WHERE is_primary_contact = TRUE AND deleted_at IS NULL;
 
 -- =========================================================
--- 11. VENDORS
+-- 11. RESIDENT INVITATIONS
+-- =========================================================
+--
+-- resident_invitations = token-based flows for linking a login account to an
+-- existing resident record.
+--
+-- Why this exists:
+--
+-- 1. Community admins often create the resident record first.
+-- 2. The resident may sign up later using a shared token or invite link.
+-- 3. Accepting the invite should both link the user to the resident record and
+--    grant active community membership.
+--
+-- This is intentionally separate from community_invitations:
+--
+-- - community_invitations grant general community membership
+-- - resident_invitations bind the accepted account to a specific resident
+--
+CREATE TABLE IF NOT EXISTS resident_invitations (
+    -- Invitation primary key.
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    -- Tenant scope.
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+
+    -- Community scope.
+    community_id UUID NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+
+    -- Resident that will be claimed/linked.
+    resident_id UUID NOT NULL REFERENCES residents(id) ON DELETE CASCADE,
+
+    -- Secure invite token.
+    token UUID NOT NULL DEFAULT gen_random_uuid(),
+
+    -- Invite expiry time.
+    expires_at TIMESTAMPTZ NOT NULL,
+
+    -- When the invite was accepted.
+    accepted_at TIMESTAMPTZ,
+
+    -- Admin/member who created the invite.
+    invited_by UUID REFERENCES users(id) ON DELETE SET NULL,
+
+    -- User who accepted the invite.
+    accepted_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+
+    -- Creation timestamp.
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT uq_resident_invitations_token UNIQUE (token)
+);
+
+CREATE INDEX IF NOT EXISTS idx_resident_invitations_resident_id
+ON resident_invitations(resident_id);
+
+CREATE INDEX IF NOT EXISTS idx_resident_invitations_community_id
+ON resident_invitations(organization_id, community_id);
+
+-- =========================================================
+-- 12. VENDORS
 -- =========================================================
 --
 -- vendors = service providers known to the community

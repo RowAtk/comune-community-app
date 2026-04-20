@@ -47,13 +47,13 @@
 			<Card>
 				<CardHeader>
 					<CardDescription>Assigned unit</CardDescription>
-					<CardTitle>{data.unit?.unit_number || data.household.unit_id}</CardTitle>
+					<CardTitle>{data.unit?.unit_number || 'Unknown unit'}</CardTitle>
 				</CardHeader>
 			</Card>
 			<Card>
 				<CardHeader>
-					<CardDescription>Linked unit ID</CardDescription>
-					<CardTitle class="font-mono text-base">{data.household.unit_id}</CardTitle>
+					<CardDescription>Unit details</CardDescription>
+					<CardTitle>{data.unit?.block_floor || data.unit?.unit_type || 'No extra unit details'}</CardTitle>
 				</CardHeader>
 			</Card>
 		</div>
@@ -62,13 +62,9 @@
 			<Card>
 				<CardHeader>
 					<CardTitle>Record Metadata</CardTitle>
-					<CardDescription>Helpful reference information for this household record.</CardDescription>
+					<CardDescription>Helpful timing information for this household record.</CardDescription>
 				</CardHeader>
 				<CardContent class="space-y-4 text-sm text-slate-600">
-					<div>
-						<p class="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">Household ID</p>
-						<p class="mt-1 font-mono text-[13px] text-slate-900">{data.household.id}</p>
-					</div>
 					<div>
 						<p class="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">Created</p>
 						<p class="mt-1 text-slate-900">{new Date(data.household.created_at).toLocaleString()}</p>

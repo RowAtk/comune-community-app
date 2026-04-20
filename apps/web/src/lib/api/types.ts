@@ -47,6 +47,9 @@ export type Household = CommunityResource & {
 export type Resident = CommunityResource & {
 	unit_id: string;
 	user_id?: string | null;
+	linked_user_email?: string;
+	linked_user_name?: string;
+	linked_user_phone?: string;
 	household_id?: string | null;
 	first_name: string;
 	last_name: string;
@@ -61,4 +64,36 @@ export type Resident = CommunityResource & {
 	created_at: string;
 	updated_at: string;
 	deleted_at?: string | null;
+};
+
+export type ResidentInvitation = CommunityResource & {
+	id: string;
+	resident_id: string;
+	token: string;
+	expires_at: string;
+	accepted_at?: string | null;
+	invited_by?: string | null;
+	accepted_by_user_id?: string | null;
+	created_at: string;
+};
+
+export type ResidentInvitationPreview = {
+	id: string;
+	organization_id: string;
+	organization: string;
+	community_id: string;
+	community: string;
+	resident_id: string;
+	resident_name: string;
+	resident_type: string;
+	household_id?: string | null;
+	household_name?: string;
+	unit_id: string;
+	unit_number: string;
+	household_role?: string | null;
+	status: string;
+	token: string;
+	expires_at: string;
+	accepted_at?: string | null;
+	invited_by?: string | null;
 };

@@ -68,6 +68,7 @@ The web app should feel fast, calm, and operationally trustworthy for property m
 - Interfaces should feel professional, not generic admin-template clutter.
 - Design for dense operational use: fast scanning, clear hierarchy, and obvious next actions.
 - Statuses, warnings, and badges should map to real business meaning consistently.
+- Never use raw database IDs as the primary thing a user sees on a screen. Prefer names, emails, usernames, slugs, unit numbers, household names, or other business-friendly identifiers.
 - Jamaica-specific context matters. Date, time, phone, address, and terminology choices should fit local operations when product requirements call for it.
 
 ## Performance And UX
@@ -76,6 +77,9 @@ The web app should feel fast, calm, and operationally trustworthy for property m
 - Prefer progressive enhancement over JS-only flows.
 - Split complex pages into smaller sections when it improves scanability and maintenance.
 - Large collections should gain pagination, filtering, or grouping before they become unwieldy.
+- Build screens with the expectation that a single community may eventually have hundreds or thousands of residents, households, visitors, invoices, notifications, or audit records.
+- Do not rely on “load everything and filter in the browser” once a resource is plausibly high-volume; move that work server-side.
+- Prefer human-friendly summaries and drill-down views over rendering huge dense datasets on one page.
 
 ## Testing Expectations
 

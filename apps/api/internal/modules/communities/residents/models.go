@@ -15,6 +15,9 @@ type Resident struct {
 	CommunityID      string     `json:"community_id"`
 	UnitID           string     `json:"unit_id"`
 	UserID           *string    `json:"user_id,omitempty"`
+	LinkedUserEmail  string     `json:"linked_user_email,omitempty"`
+	LinkedUserName   string     `json:"linked_user_name,omitempty"`
+	LinkedUserPhone  string     `json:"linked_user_phone,omitempty"`
 	HouseholdID      *string    `json:"household_id,omitempty"`
 	FirstName        string     `json:"first_name"`
 	LastName         string     `json:"last_name"`
@@ -50,19 +53,62 @@ type CreateInput struct {
 }
 
 type UpdateInput struct {
-	UnitID           *string     `json:"unit_id"`
-	UserID           *string     `json:"user_id"`
-	HouseholdID      *string     `json:"household_id"`
-	FirstName        *string     `json:"first_name"`
-	LastName         *string     `json:"last_name"`
-	Email            *string     `json:"email"`
-	Phone            *string     `json:"phone"`
-	ResidentType     *string     `json:"resident_type"`
-	HouseholdRole    *string     `json:"household_role"`
-	Status           *string     `json:"status"`
-	IsPrimaryContact *bool       `json:"is_primary_contact"`
+	UnitID           *string            `json:"unit_id"`
+	UserID           *string            `json:"user_id"`
+	HouseholdID      *string            `json:"household_id"`
+	FirstName        *string            `json:"first_name"`
+	LastName         *string            `json:"last_name"`
+	Email            *string            `json:"email"`
+	Phone            *string            `json:"phone"`
+	ResidentType     *string            `json:"resident_type"`
+	HouseholdRole    *string            `json:"household_role"`
+	Status           *string            `json:"status"`
+	IsPrimaryContact *bool              `json:"is_primary_contact"`
 	MoveInDate       *NullableDateInput `json:"move_in_date"`
 	MoveOutDate      *NullableDateInput `json:"move_out_date"`
+}
+
+type ResidentInvitation struct {
+	ID               string     `json:"id"`
+	OrganizationID   string     `json:"organization_id"`
+	CommunityID      string     `json:"community_id"`
+	ResidentID       string     `json:"resident_id"`
+	Token            string     `json:"token"`
+	ExpiresAt        time.Time  `json:"expires_at"`
+	AcceptedAt       *time.Time `json:"accepted_at,omitempty"`
+	InvitedBy        *string    `json:"invited_by,omitempty"`
+	AcceptedByUserID *string    `json:"accepted_by_user_id,omitempty"`
+	CreatedAt        time.Time  `json:"created_at"`
+}
+
+type CreateInvitationInput struct {
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+}
+
+type ResidentInvitationPreview struct {
+	ID             string     `json:"id"`
+	OrganizationID string     `json:"organization_id"`
+	Organization   string     `json:"organization"`
+	CommunityID    string     `json:"community_id"`
+	Community      string     `json:"community"`
+	ResidentID     string     `json:"resident_id"`
+	ResidentName   string     `json:"resident_name"`
+	ResidentType   string     `json:"resident_type"`
+	HouseholdID    *string    `json:"household_id,omitempty"`
+	HouseholdName  string     `json:"household_name,omitempty"`
+	UnitID         string     `json:"unit_id"`
+	UnitNumber     string     `json:"unit_number"`
+	HouseholdRole  *string    `json:"household_role,omitempty"`
+	Status         string     `json:"status"`
+	Token          string     `json:"token"`
+	ExpiresAt      time.Time  `json:"expires_at"`
+	AcceptedAt     *time.Time `json:"accepted_at,omitempty"`
+	InvitedBy      *string    `json:"invited_by,omitempty"`
+}
+
+type acceptInvitationParams struct {
+	UserID string
+	Token  string
 }
 
 type Service struct {

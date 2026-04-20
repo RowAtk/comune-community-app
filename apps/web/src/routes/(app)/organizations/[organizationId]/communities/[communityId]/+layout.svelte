@@ -20,11 +20,7 @@
 					<h1 class="text-2xl font-semibold tracking-tight">
 						{data.community?.name ?? 'Community workspace'}
 					</h1>
-					<p class="text-sm leading-6 text-slate-400">
-						Organization <span class="font-mono text-[11px]"
-							>{data.community?.organization_id ?? data.routeParams?.organizationId}</span
-						>
-					</p>
+					<p class="text-sm leading-6 text-slate-400">Community operations workspace</p>
 				</div>
 
 				<div class="flex flex-wrap gap-2">

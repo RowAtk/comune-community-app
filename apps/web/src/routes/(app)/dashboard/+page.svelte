@@ -119,4 +119,24 @@
 			</CardContent>
 		</Card>
 	</div>
+
+	<Card class="mt-6 border-slate-200/80 bg-white/95">
+		<CardHeader>
+			<CardTitle>Join A Resident Invite</CardTitle>
+			<CardDescription>
+				If a community admin shared a token with you directly, paste it here to open the resident claim flow.
+			</CardDescription>
+		</CardHeader>
+		<CardContent>
+			<form method="GET" action="/invites/residents" class="flex flex-col gap-3 sm:flex-row">
+				<input
+					name="token"
+					placeholder="Paste resident invite token"
+					required
+					class="flex-1 rounded-xl border border-(--color-app-border) bg-white px-3 py-2 text-sm text-[var(--color-app-text)] shadow-sm outline-none transition focus:border-[var(--color-secondary-400)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--color-secondary-300)_35%,transparent)]"
+				/>
+				<Button type="submit" variant="outline">Open Invite</Button>
+			</form>
+		</CardContent>
+	</Card>
 </AppShell>

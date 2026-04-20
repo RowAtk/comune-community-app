@@ -129,6 +129,26 @@
 						</form>
 					</CardContent>
 				</Card>
+
+				<Card class="border-slate-200/70 bg-white">
+					<CardHeader>
+						<div>
+							<CardTitle>Have An Invite Token?</CardTitle>
+							<CardDescription>
+								Paste a resident invite token to continue with a direct claim flow.
+							</CardDescription>
+						</div>
+					</CardHeader>
+					<CardContent>
+						<form method="GET" action="/invites/residents" class="space-y-4">
+							<div class="space-y-2">
+								<Label for="resident_invite_token">Resident Invite Token</Label>
+								<Input id="resident_invite_token" name="token" placeholder="Paste token here" required />
+							</div>
+							<Button type="submit" class="w-full" variant="outline">Open Invite</Button>
+						</form>
+					</CardContent>
+				</Card>
 			</div>
 		</div>
 	</div>

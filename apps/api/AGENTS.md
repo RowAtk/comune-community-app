@@ -85,6 +85,10 @@ This is the default, not a straitjacket. Add files when a module grows, but keep
 - Respect request cancellation and timeouts.
 - Prefer straightforward performance wins: correct indexes, bounded queries, and avoiding repeated round-trips.
 - Do not optimize with caching until the ownership, invalidation, and tenant boundaries are clear.
+- New endpoints must be designed for communities with hundreds or thousands of records, not just seed-data scale.
+- Default to paginated or otherwise bounded read patterns for list endpoints once unbounded growth is plausible.
+- Repository code should make the likely access path obvious: tenant predicates first, selective filters second, ordering and limits last.
+- When loading related data for collections, prefer joins or batched queries over per-row follow-up queries.
 
 ## Testing Expectations
 

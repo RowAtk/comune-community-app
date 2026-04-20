@@ -33,6 +33,15 @@ When making changes anywhere in this repo, follow this file first, then any more
 - Favor boring, explicit code over clever abstractions.
 - Every cross-layer contract should be easy to trace from UI -> API -> database.
 
+## Scale Rules
+
+- Design every new feature so it remains reasonable at thousands of users overall and thousands of records within a single community.
+- Do not assume lists will stay small. Plan query patterns, indexes, pagination, filtering, and sorting before large datasets become a production problem.
+- Avoid N+1 data access in APIs and avoid duplicate fetch patterns in the web app when related data can be loaded in one bounded pass.
+- Prefer stable, indexed lookups and bounded result sets over convenience queries that scan or return everything.
+- Features should degrade gracefully under growth: admin screens, dashboards, invite flows, resident lists, household lists, billing records, and notifications must all be able to handle materially larger tenant datasets than exist today.
+- If a first version ships with a scale constraint for speed, document that constraint explicitly in code or adjacent docs rather than leaving it as a hidden assumption.
+
 ## Multi-Tenancy And Security
 
 - Never query or mutate tenant data without organization scoping.
@@ -68,6 +77,7 @@ When making changes anywhere in this repo, follow this file first, then any more
 - Optimize for code that one person can safely change at 11 PM and a team can still understand six months later.
 - Keep functions small enough to scan quickly.
 - Prefer explicit names that match the business language used by property managers and community admins.
+- Do not expose raw database IDs in user-facing UI copy. IDs are acceptable in routes, API contracts, logs, and internal tooling, but screens should prefer names, labels, slugs, unit numbers, emails, or other human-meaningful identifiers.
 - Write comments only when they explain non-obvious intent, policy, or tradeoffs.
 - Remove dead code, stale TODOs, and abandoned experiments as part of normal maintenance.
 - Avoid broad refactors during feature work unless they directly reduce risk or unblock the feature.
