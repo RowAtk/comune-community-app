@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"comune/apps/api/internal/modules/auth"
 	"comune/apps/api/internal/modules/communities"
+	"comune/apps/api/internal/modules/invoicing"
 	"comune/apps/api/internal/modules/organizations"
 	"comune/apps/api/internal/platform/httpx"
 	"context"
@@ -22,12 +23,19 @@ import (
 
 const requestIDHeader = "X-Request-Id"
 
-func NewMux(logger *zap.Logger, authService *auth.Service, organizationService *organizations.Service, communityService *communities.Service) *http.ServeMux {
+func NewMux(
+	logger *zap.Logger,
+	authService *auth.Service,
+	organizationService *organizations.Service,
+	communityService *communities.Service,
+	invoicingService *invoicing.Service,
+) *http.ServeMux {
 	mux := http.NewServeMux()
 	authMiddleware := auth.NewMiddleware(authService)
 	authHandler := auth.NewHandler(authService)
 	organizationHandler := organizations.NewHandler(organizationService)
 	communityHandler := communities.NewHandler(communityService)
+	invoicingHandler := invoicing.NewHandler(invoicingService)
 
 	mux.Handle("GET /healthz", httpx.Adapt(logger, func(w http.ResponseWriter, r *http.Request) error {
 		httpx.WriteJSON(w, http.StatusOK, httpx.ResponseEnvelope{
@@ -39,12 +47,20 @@ func NewMux(logger *zap.Logger, authService *auth.Service, organizationService *
 	authHandler.Register(mux, logger, authMiddleware.RequireAuth)
 	organizationHandler.Register(mux, logger, authMiddleware.RequireAuth)
 	communityHandler.Register(mux, logger, authMiddleware.RequireAuth)
+	invoicingHandler.Register(mux, logger, authMiddleware.RequireAuth)
 
 	return mux
 }
 
-func NewHTTPServer(addr string, logger *zap.Logger, authService *auth.Service, organizationService *organizations.Service, communityService *communities.Service) *http.Server {
-	var handler http.Handler = NewMux(logger, authService, organizationService, communityService)
+func NewHTTPServer(
+	addr string,
+	logger *zap.Logger,
+	authService *auth.Service,
+	organizationService *organizations.Service,
+	communityService *communities.Service,
+	invoicingService *invoicing.Service,
+) *http.Server {
+	var handler http.Handler = NewMux(logger, authService, organizationService, communityService, invoicingService)
 	handler = withTracing(handler)
 	handler = logRequests(logger, handler)
 

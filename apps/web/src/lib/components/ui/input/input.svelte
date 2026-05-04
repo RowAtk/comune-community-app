@@ -26,7 +26,7 @@
 
 <input
 	class={cn(
-		'flex h-11 w-full rounded-xl border border-[var(--color-app-border)] bg-white px-3 py-2 text-sm text-[var(--color-app-text)] shadow-sm outline-none transition placeholder:text-[var(--color-app-subtle)] focus:border-[var(--color-secondary-400)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--color-secondary-300)_35%,transparent)] disabled:cursor-not-allowed disabled:bg-slate-50',
+		'flex h-11 w-full rounded-xl border border-[var(--color-app-border)] bg-[var(--color-app-surface-strong)] px-3 py-2 text-sm text-[var(--color-app-text)] shadow-sm transition outline-none placeholder:text-[var(--color-app-subtle)] focus:border-[var(--color-brand-300)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--color-brand-200)_45%,transparent)] disabled:cursor-not-allowed disabled:bg-[var(--color-app-panel-strong)]',
 		className
 	)}
 	{value}

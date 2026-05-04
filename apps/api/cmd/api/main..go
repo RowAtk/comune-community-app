@@ -3,6 +3,7 @@ package main
 import (
 	"comune/apps/api/internal/modules/auth"
 	"comune/apps/api/internal/modules/communities"
+	"comune/apps/api/internal/modules/invoicing"
 	"comune/apps/api/internal/modules/organizations"
 	"comune/apps/api/internal/platform/config"
 	"comune/apps/api/internal/platform/server"
@@ -59,7 +60,15 @@ func main() {
 	authService := auth.NewService(dbPool, cfg.SessionSecret, cfg.SessionDuration)
 	organizationService := organizations.NewService(dbPool)
 	communityService := communities.NewService(dbPool)
-	server := server.NewHTTPServer(cfg.APIAddr, logger, authService, organizationService, communityService)
+	invoicingService := invoicing.NewService(dbPool)
+	server := server.NewHTTPServer(
+		cfg.APIAddr,
+		logger,
+		authService,
+		organizationService,
+		communityService,
+		invoicingService,
+	)
 
 	logger.Info(
 		"api listening",

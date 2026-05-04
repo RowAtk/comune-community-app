@@ -36,7 +36,7 @@
 	let selectedHouseholdId = $state('');
 
 	const selectedUnitHouseholds = $derived(
-		selectedUnitId ? householdsByUnit.get(selectedUnitId) ?? [] : []
+		selectedUnitId ? (householdsByUnit.get(selectedUnitId) ?? []) : []
 	);
 
 	$effect(() => {
@@ -84,16 +84,15 @@
 <ResourceCollection
 	resourceName="residents"
 	resourceHeading="People and contacts"
-	resourceDescription="Create and manage resident records now, then link a user profile later through invitations when needed."
-	creationDescription="Add a resident with their role and unit assignment, then attach a profile later through the invite flow."
+	resourceDescription="Manage the people who actually live in the community, keeping their household role, contact record, and eventual linked account clear."
+	creationDescription="Add a resident with the right unit and household context first, then attach a profile later through the invite flow."
 	resourceList={data.residents}
 	createForm={form}
 	apiError={data.apiError}
-	resourceEmptyCreateDescription="Create the first resident to start linking households and contacts."
+	resourceEmptyCreateDescription="Create the first resident after units and households are ready so the occupancy structure stays clean."
 	groupBy={(resident) =>
 		data.households.find((household) => household.id === resident.household_id)?.name ||
-		(resident.household_id ? 'Unnamed household' : 'Unassigned')
-	}
+		(resident.household_id ? 'Unnamed household' : 'Unassigned')}
 >
 	{#snippet headerActions()}
 		<Button href={`${communityBasePath}/households`} variant="outline">View Households</Button>
@@ -115,7 +114,7 @@
 				name="unit_id"
 				required
 				bind:value={selectedUnitId}
-				class="flex h-11 w-full rounded-xl border border-(--color-app-border) bg-white px-3 py-2 text-sm text-[var(--color-app-text)] shadow-sm outline-none transition focus:border-[var(--color-secondary-400)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--color-secondary-300)_35%,transparent)]"
+				class="flex h-11 w-full rounded-xl border border-(--color-app-border) bg-[var(--color-app-surface-strong)] px-3 py-2 text-sm text-[var(--color-app-text)] shadow-sm transition outline-none focus:border-[var(--color-secondary-400)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--color-secondary-300)_35%,transparent)]"
 			>
 				<option value="" disabled>Select a unit</option>
 				{#each data.units as unit}
@@ -130,7 +129,7 @@
 				name="household_id"
 				bind:value={selectedHouseholdId}
 				disabled={!selectedUnitId || selectedUnitHouseholds.length === 0}
-				class="flex h-11 w-full rounded-xl border border-(--color-app-border) bg-white px-3 py-2 text-sm text-[var(--color-app-text)] shadow-sm outline-none transition focus:border-[var(--color-secondary-400)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--color-secondary-300)_35%,transparent)] disabled:bg-slate-50 disabled:text-slate-400"
+				class="flex h-11 w-full rounded-xl border border-(--color-app-border) bg-[var(--color-app-surface-strong)] px-3 py-2 text-sm text-[var(--color-app-text)] shadow-sm transition outline-none focus:border-[var(--color-secondary-400)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--color-secondary-300)_35%,transparent)] disabled:bg-[var(--color-app-panel)] disabled:text-[var(--color-app-subtle)]"
 			>
 				<option value="">
 					{#if !selectedUnitId}
@@ -157,15 +156,19 @@
 				id="resident_type"
 				name="resident_type"
 				required
-				class="flex h-11 w-full rounded-xl border border-(--color-app-border) bg-white px-3 py-2 text-sm text-[var(--color-app-text)] shadow-sm outline-none transition focus:border-[var(--color-secondary-400)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--color-secondary-300)_35%,transparent)]"
+				class="flex h-11 w-full rounded-xl border border-(--color-app-border) bg-[var(--color-app-surface-strong)] px-3 py-2 text-sm text-[var(--color-app-text)] shadow-sm transition outline-none focus:border-[var(--color-secondary-400)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--color-secondary-300)_35%,transparent)]"
 			>
-				<option value="" disabled selected={!form?.values?.resident_type}>Select a resident type</option>
+				<option value="" disabled selected={!form?.values?.resident_type}
+					>Select a resident type</option
+				>
 				<option value="OWNER" selected={form?.values?.resident_type === 'OWNER'}>Owner</option>
 				<option value="TENANT" selected={form?.values?.resident_type === 'TENANT'}>Tenant</option>
 				<option value="DEPENDENT" selected={form?.values?.resident_type === 'DEPENDENT'}>
 					Dependent
 				</option>
-				<option value="OCCUPANT" selected={form?.values?.resident_type === 'OCCUPANT'}>Occupant</option>
+				<option value="OCCUPANT" selected={form?.values?.resident_type === 'OCCUPANT'}
+					>Occupant</option
+				>
 			</select>
 		</div>
 		<div class="space-y-2">
@@ -173,16 +176,25 @@
 			<select
 				id="household_role"
 				name="household_role"
-				class="flex h-11 w-full rounded-xl border border-(--color-app-border) bg-white px-3 py-2 text-sm text-[var(--color-app-text)] shadow-sm outline-none transition focus:border-[var(--color-secondary-400)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--color-secondary-300)_35%,transparent)]"
+				class="flex h-11 w-full rounded-xl border border-(--color-app-border) bg-[var(--color-app-surface-strong)] px-3 py-2 text-sm text-[var(--color-app-text)] shadow-sm transition outline-none focus:border-[var(--color-secondary-400)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--color-secondary-300)_35%,transparent)]"
 			>
 				<option value="" selected={!form?.values?.household_role}>Default access</option>
-				<option value="HOUSEHOLD_ADMIN" selected={form?.values?.household_role === 'HOUSEHOLD_ADMIN'}>
+				<option
+					value="HOUSEHOLD_ADMIN"
+					selected={form?.values?.household_role === 'HOUSEHOLD_ADMIN'}
+				>
 					Household Admin
 				</option>
-				<option value="HOUSEHOLD_MEMBER" selected={form?.values?.household_role === 'HOUSEHOLD_MEMBER'}>
+				<option
+					value="HOUSEHOLD_MEMBER"
+					selected={form?.values?.household_role === 'HOUSEHOLD_MEMBER'}
+				>
 					Household Member
 				</option>
-				<option value="HOUSEHOLD_VIEWER" selected={form?.values?.household_role === 'HOUSEHOLD_VIEWER'}>
+				<option
+					value="HOUSEHOLD_VIEWER"
+					selected={form?.values?.household_role === 'HOUSEHOLD_VIEWER'}
+				>
 					Household Viewer
 				</option>
 			</select>
@@ -200,7 +212,12 @@
 		</div>
 		<div class="space-y-2 md:col-span-2">
 			<Label for="move_in_date">Move In Date</Label>
-			<Input id="move_in_date" name="move_in_date" type="date" value={form?.values?.move_in_date ?? ''} />
+			<Input
+				id="move_in_date"
+				name="move_in_date"
+				type="date"
+				value={form?.values?.move_in_date ?? ''}
+			/>
 		</div>
 	{/snippet}
 
@@ -218,7 +235,7 @@
 					<Badge variant="outline">{resident.household_role}</Badge>
 				</div>
 			{/if}
-			<div class="space-y-1 text-sm text-slate-600">
+			<div class="space-y-1 text-sm text-[var(--color-app-muted)]">
 				<p>{resident.linked_user_email || resident.email || 'No email on file'}</p>
 				<p>{resident.linked_user_phone || resident.phone || 'No phone on file'}</p>
 			</div>

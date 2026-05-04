@@ -1,4 +1,7 @@
-<script lang="ts" generics="T extends CommunityResource, TValues extends Record<string, unknown> = Record<string, unknown>">
+<script
+	lang="ts"
+	generics="T extends CommunityResource, TValues extends Record<string, unknown> = Record<string, unknown>"
+>
 	import { untrack } from 'svelte';
 	import type { CommunityResource } from '$lib/api/types';
 	import { CounterBadge } from '$lib/components/ui/badge';
@@ -87,14 +90,15 @@
 
 		const currentOpenGroups = untrack(() => openGroups);
 		const nextOpenGroups = Object.fromEntries(
-			groupedResources.map((group, index) => [group.label, currentOpenGroups[group.label] ?? index === 0])
+			groupedResources.map((group, index) => [
+				group.label,
+				currentOpenGroups[group.label] ?? index === 0
+			])
 		);
 
 		const hasChanged =
 			Object.keys(currentOpenGroups).length !== Object.keys(nextOpenGroups).length ||
-			Object.entries(nextOpenGroups).some(
-				([label, isOpen]) => currentOpenGroups[label] !== isOpen
-			);
+			Object.entries(nextOpenGroups).some(([label, isOpen]) => currentOpenGroups[label] !== isOpen);
 
 		if (hasChanged) {
 			openGroups = nextOpenGroups;
@@ -105,11 +109,13 @@
 <div class="space-y-8">
 	<div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
 		<div class="space-y-2">
-			<p class="text-sm font-medium tracking-[0.22em] text-[var(--color-secondary-700)] uppercase">
+			<p class="theme-kicker text-sm font-medium tracking-[0.22em] uppercase">
 				{resourceName}
 			</p>
-			<h1 class="text-4xl font-semibold tracking-tight text-slate-950">{resourceHeading}</h1>
-			<p class="max-w-2xl text-base leading-7 text-slate-600">
+			<h1 class="text-4xl font-semibold tracking-tight text-[var(--color-app-text)]">
+				{resourceHeading}
+			</h1>
+			<p class="max-w-2xl text-base leading-7 text-[var(--color-app-muted)]">
 				{resourceDescription}
 			</p>
 		</div>
@@ -121,7 +127,7 @@
 
 	<Card
 		class={cn(
-			'overflow-hidden transition-all duration-300',
+			'theme-soft-card overflow-hidden border-0 transition-all duration-300',
 			createOpen &&
 				'border-[var(--color-secondary-200)] shadow-lg shadow-[color-mix(in_oklab,var(--color-secondary-200)_35%,transparent)]'
 		)}
@@ -148,7 +154,7 @@
 
 		{#if createOpen}
 			<div transition:slide={{ duration: 220 }}>
-				<CardContent class="border-t border-slate-100 pt-6">
+				<CardContent class="border-t border-[var(--color-app-border)] pt-6">
 					<form method="POST" class="grid gap-4 md:grid-cols-2">
 						{@render createFormBody?.()}
 						<div class="space-y-3 md:col-span-2">
@@ -180,61 +186,62 @@
 	{/if}
 
 	{#if resourceList.length === 0}
-		<Card>
+		<Card class="theme-soft-card border-0">
 			<CardHeader>
 				<CardTitle>No {resourceName} yet</CardTitle>
 				<CardDescription>{resourceEmptyCreateDescription}</CardDescription>
 			</CardHeader>
 		</Card>
+	{:else if groupBy}
+		<div class="space-y-8">
+			{#each groupedResources as group}
+				<section class="space-y-4">
+					<button
+						type="button"
+						class="theme-soft-card flex w-full items-center justify-between gap-4 rounded-2xl px-4 py-3 text-left transition hover:-translate-y-0.5"
+						aria-expanded={openGroups[group.label]}
+						onclick={() => toggleGroup(group.label)}
+					>
+						<div class="space-y-1">
+							<h2 class="text-lg font-semibold tracking-tight text-[var(--color-app-text)]">
+								{group.label}
+							</h2>
+							<p class="text-sm text-[var(--color-app-muted)]">
+								{group.items.length}
+								{group.items.length === 1 ? resourceSingleName : resourceName}
+							</p>
+						</div>
+						<span class="text-sm font-medium text-[var(--color-app-muted)]">
+							{openGroups[group.label] ? 'Hide' : 'Show'}
+						</span>
+					</button>
+					{#if openGroups[group.label]}
+						<div transition:slide={{ duration: 220 }}>
+							<div
+								class={cn(
+									'grid gap-4 transition-all duration-300 md:grid-cols-2',
+									!createOpen && 'xl:grid-cols-3'
+								)}
+							>
+								{#each group.items as resourceItem (resourceItem.id)}
+									{@render listItemCard(resourceItem)}
+								{/each}
+							</div>
+						</div>
+					{/if}
+				</section>
+			{/each}
+		</div>
 	{:else}
-		{#if groupBy}
-			<div class="space-y-8">
-				{#each groupedResources as group}
-					<section class="space-y-4">
-						<button
-							type="button"
-							class="flex w-full items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-left transition hover:border-slate-300 hover:bg-slate-50"
-							aria-expanded={openGroups[group.label]}
-							onclick={() => toggleGroup(group.label)}
-						>
-							<div class="space-y-1">
-								<h2 class="text-lg font-semibold tracking-tight text-slate-950">{group.label}</h2>
-								<p class="text-sm text-slate-500">
-									{group.items.length} {group.items.length === 1 ? resourceSingleName : resourceName}
-								</p>
-							</div>
-							<span class="text-sm font-medium text-slate-500">
-								{openGroups[group.label] ? 'Hide' : 'Show'}
-							</span>
-						</button>
-						{#if openGroups[group.label]}
-							<div transition:slide={{ duration: 220 }}>
-								<div
-									class={cn(
-										'grid gap-4 transition-all duration-300 md:grid-cols-2',
-										!createOpen && 'xl:grid-cols-3'
-									)}
-								>
-									{#each group.items as resourceItem (resourceItem.id)}
-										{@render listItemCard(resourceItem)}
-									{/each}
-								</div>
-							</div>
-						{/if}
-					</section>
-				{/each}
-			</div>
-		{:else}
-			<div
-				class={cn(
-					'grid gap-4 transition-all duration-300 md:grid-cols-2',
-					!createOpen && 'xl:grid-cols-3'
-				)}
-			>
-				{#each resourceList as resourceItem (resourceItem.id)}
-					{@render listItemCard(resourceItem)}
-				{/each}
-			</div>
-		{/if}
+		<div
+			class={cn(
+				'grid gap-4 transition-all duration-300 md:grid-cols-2',
+				!createOpen && 'xl:grid-cols-3'
+			)}
+		>
+			{#each resourceList as resourceItem (resourceItem.id)}
+				{@render listItemCard(resourceItem)}
+			{/each}
+		</div>
 	{/if}
 </div>

@@ -71,15 +71,18 @@
 
 <div class="space-y-8">
 	<div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-		<div class="space-y-2">
-			<p class="text-sm font-medium tracking-[0.22em] text-[var(--color-secondary-700)] uppercase">
+		<div class="space-y-3">
+			<div
+				class="theme-hero-chip inline-flex rounded-full px-4 py-2 text-xs font-semibold tracking-[0.24em] uppercase"
+			>
 				Unit
-			</p>
-			<h1 class="text-4xl font-semibold tracking-tight text-slate-950">
+			</div>
+			<h1 class="text-4xl font-semibold tracking-tight text-[var(--color-app-text)]">
 				{data.unit?.unit_number ?? 'Unit details'}
 			</h1>
-			<p class="max-w-2xl text-base leading-7 text-slate-600">
-				View the core details for this physical space within the community.
+			<p class="max-w-2xl text-base leading-7 text-[var(--color-app-muted)]">
+				Use this view to understand the physical record first, then see the households and residents
+				anchored to it.
 			</p>
 		</div>
 		<div class="flex gap-3">
@@ -98,10 +101,10 @@
 		</Card>
 	{:else}
 		<div class="grid gap-5 md:grid-cols-3">
-			<Card class="bg-slate-950 text-white">
+			<Card class="theme-highlight-card border-0">
 				<CardHeader>
-					<CardDescription class="text-slate-300">Unit number</CardDescription>
-					<CardTitle class="text-white">{data.unit.unit_number}</CardTitle>
+					<CardDescription class="text-[color:rgba(253,250,244,0.78)]">Unit number</CardDescription>
+					<CardTitle class="text-[var(--color-app-inverse)]">{data.unit.unit_number}</CardTitle>
 				</CardHeader>
 			</Card>
 			<Card>
@@ -124,14 +127,26 @@
 					<CardTitle>Record Metadata</CardTitle>
 					<CardDescription>Useful timing information for this unit record.</CardDescription>
 				</CardHeader>
-				<CardContent class="space-y-4 text-sm text-slate-600">
+				<CardContent class="space-y-4 text-sm text-[var(--color-app-muted)]">
 					<div>
-						<p class="text-xs font-medium tracking-[0.2em] text-slate-400 uppercase">Created</p>
-						<p class="mt-1 text-slate-900">{new Date(data.unit.created_at).toLocaleString()}</p>
+						<p
+							class="text-xs font-medium tracking-[0.2em] text-[var(--color-app-subtle)] uppercase"
+						>
+							Created
+						</p>
+						<p class="mt-1 text-[var(--color-app-text)]">
+							{new Date(data.unit.created_at).toLocaleString()}
+						</p>
 					</div>
 					<div>
-						<p class="text-xs font-medium tracking-[0.2em] text-slate-400 uppercase">Updated</p>
-						<p class="mt-1 text-slate-900">{new Date(data.unit.updated_at).toLocaleString()}</p>
+						<p
+							class="text-xs font-medium tracking-[0.2em] text-[var(--color-app-subtle)] uppercase"
+						>
+							Updated
+						</p>
+						<p class="mt-1 text-[var(--color-app-text)]">
+							{new Date(data.unit.updated_at).toLocaleString()}
+						</p>
 					</div>
 				</CardContent>
 			</Card>
@@ -173,17 +188,19 @@
 			</CardHeader>
 			<CardContent class="space-y-6">
 				{#if (data.residents ?? []).length === 0}
-					<p class="text-sm text-slate-600">No residents are assigned to this unit yet.</p>
+					<p class="text-sm text-[var(--color-app-muted)]">
+						No residents are assigned to this unit yet.
+					</p>
 				{:else}
 					<div class="space-y-6">
 						{#each residentsByHousehold as householdGroup}
 							<section class="space-y-3">
 								<div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
 									<div class="space-y-1">
-										<h2 class="text-lg font-semibold tracking-tight text-slate-950">
+										<h2 class="text-lg font-semibold tracking-tight text-[var(--color-app-text)]">
 											{householdGroup.label}
 										</h2>
-										<p class="text-sm text-slate-500">
+										<p class="text-sm text-[var(--color-app-muted)]">
 											{householdGroup.residents.length}
 											{householdGroup.residents.length === 1 ? ' resident' : ' residents'}
 										</p>
@@ -211,7 +228,7 @@
 														<Badge variant="outline">{resident.household_role}</Badge>
 													</div>
 												{/if}
-												<div class="space-y-1 text-sm text-slate-600">
+												<div class="space-y-1 text-sm text-[var(--color-app-muted)]">
 													<p>{resident.email || 'No email on file'}</p>
 													<p>{resident.phone || 'No phone on file'}</p>
 												</div>

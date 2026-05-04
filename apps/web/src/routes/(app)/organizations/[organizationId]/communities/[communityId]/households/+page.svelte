@@ -23,12 +23,12 @@
 <ResourceCollection
 	resourceName="households"
 	resourceHeading="Occupancy groups"
-	resourceDescription="Group together family members, tenants, or roommates while keeping each household mapped to a unit."
-	creationDescription="Create a household and assign it to an existing unit."
+	resourceDescription="Shape how people live and operate inside the community by grouping residents into meaningful occupancy units."
+	creationDescription="Create a household and attach it to an existing unit so later resident and billing flows stay grounded."
 	resourceList={data.households}
 	createForm={form}
 	apiError={data.apiError}
-	resourceEmptyCreateDescription="Create the first household to start mapping occupancy groups to units."
+	resourceEmptyCreateDescription="Create the first household after units are ready so occupancy groups can form around real spaces."
 >
 	{#snippet headerActions()}
 		<Button href="./units" variant="outline">Back To Units</Button>
@@ -41,11 +41,13 @@
 				id="unit_id"
 				name="unit_id"
 				required
-				class="flex h-11 w-full rounded-xl border border-(--color-app-border) bg-white px-3 py-2 text-sm text-[var(--color-app-text)] shadow-sm outline-none transition focus:border-[var(--color-secondary-400)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--color-secondary-300)_35%,transparent)]"
+				class="flex h-11 w-full rounded-xl border border-(--color-app-border) bg-[var(--color-app-surface-strong)] px-3 py-2 text-sm text-[var(--color-app-text)] shadow-sm transition outline-none focus:border-[var(--color-secondary-400)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--color-secondary-300)_35%,transparent)]"
 			>
 				<option value="" disabled selected={!form?.values?.unit_id}>Select a unit</option>
 				{#each data.units as unit}
-					<option value={unit.id} selected={form?.values?.unit_id === unit.id}>{unit.unit_number}</option>
+					<option value={unit.id} selected={form?.values?.unit_id === unit.id}
+						>{unit.unit_number}</option
+					>
 				{/each}
 			</select>
 			{#if data.units.length === 0}
@@ -54,12 +56,7 @@
 		</div>
 		<div class="space-y-2">
 			<Label for="name">Household Name</Label>
-			<Input
-				id="name"
-				name="name"
-				placeholder="Brown Family"
-				value={form?.values?.name ?? ''}
-			/>
+			<Input id="name" name="name" placeholder="Brown Family" value={form?.values?.name ?? ''} />
 		</div>
 	{/snippet}
 
@@ -67,13 +64,18 @@
 		<ResourceListItemCard>
 			<div class="space-y-1">
 				<CardTitle>{household.name || 'Unnamed household'}</CardTitle>
-				<CardDescription>Occupancy group for unit assignment.</CardDescription>
+				<CardDescription>Occupancy group anchored to a physical unit.</CardDescription>
 			</div>
 			<div class="flex flex-wrap gap-2">
 				<Badge variant="outline">Unit {getUnitLabel(household.unit_id)}</Badge>
 				<Badge variant="secondary">Household</Badge>
 			</div>
-			<Button href={`${householdsBasePath}/${household.id}`} variant="outline" size="sm" class="self-start">
+			<Button
+				href={`${householdsBasePath}/${household.id}`}
+				variant="outline"
+				size="sm"
+				class="self-start"
+			>
 				View Details
 			</Button>
 		</ResourceListItemCard>

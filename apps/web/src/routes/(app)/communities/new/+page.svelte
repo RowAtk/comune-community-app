@@ -1,7 +1,13 @@
 <script lang="ts">
 	import AppShell from '$lib/components/app-shell.svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
+	import {
+		Card,
+		CardContent,
+		CardDescription,
+		CardHeader,
+		CardTitle
+	} from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 
@@ -24,10 +30,12 @@
 		<Button href="/dashboard" variant="ghost">Back to Dashboard</Button>
 	{/snippet}
 
-	<Card class="border-slate-200/80 bg-white/95">
+	<Card>
 		<CardHeader>
 			<CardTitle>Community Details</CardTitle>
-			<CardDescription>Communities live inside an organization and become their own workspace.</CardDescription>
+			<CardDescription>
+				Communities live inside an organization and become their own operational workspace.
+			</CardDescription>
 		</CardHeader>
 		<CardContent>
 			<form method="POST" class="grid gap-4 md:grid-cols-2">
@@ -36,12 +44,17 @@
 					<select
 						id="organization_id"
 						name="organization_id"
-						class="flex h-11 w-full rounded-xl border border-[var(--color-app-border)] bg-white px-3 py-2 text-sm text-[var(--color-app-text)] shadow-sm outline-none transition focus:border-[var(--color-secondary-400)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--color-secondary-300)_35%,transparent)]"
+						class="flex h-11 w-full rounded-xl border border-[var(--color-app-border)] bg-[var(--color-app-surface-strong)] px-3 py-2 text-sm text-[var(--color-app-text)] shadow-sm transition outline-none focus:border-[var(--color-brand-300)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--color-brand-200)_45%,transparent)]"
 						required
 					>
-						<option value="" disabled selected={!values.organization_id}>Select an organization</option>
-						{#each dashboard.organizations as organization}
-							<option value={organization.organization_id} selected={organization.organization_id === values.organization_id}>
+						<option value="" disabled selected={!values.organization_id}
+							>Select an organization</option
+						>
+						{#each dashboard.organizations as organization (organization.organization_id)}
+							<option
+								value={organization.organization_id}
+								selected={organization.organization_id === values.organization_id}
+							>
 								{organization.name}
 							</option>
 						{/each}
@@ -49,7 +62,13 @@
 				</div>
 				<div class="space-y-2 md:col-span-2">
 					<Label for="name">Community Name</Label>
-					<Input id="name" name="name" required value={values.name} placeholder="Harbour View Residences" />
+					<Input
+						id="name"
+						name="name"
+						required
+						value={values.name}
+						placeholder="Harbour View Residences"
+					/>
 				</div>
 				<div class="space-y-2">
 					<Label for="slug">Slug</Label>
@@ -57,21 +76,33 @@
 				</div>
 				<div class="space-y-2">
 					<Label for="timezone">Timezone</Label>
-					<Input id="timezone" name="timezone" value={values.timezone} placeholder="America/Jamaica" />
+					<Input
+						id="timezone"
+						name="timezone"
+						value={values.timezone}
+						placeholder="America/Jamaica"
+					/>
 				</div>
 				<div class="space-y-2 md:col-span-2">
 					<Label for="address">Address</Label>
-					<Input id="address" name="address" value={values.address} placeholder="24 Harbour Road, Kingston" />
+					<Input
+						id="address"
+						name="address"
+						value={values.address}
+						placeholder="24 Harbour Road, Kingston"
+					/>
 				</div>
 				{#if form?.error}
-					<p class="md:col-span-2 text-sm text-[var(--color-danger-700)]">{form.error}</p>
+					<p class="text-sm text-[var(--color-danger-700)] md:col-span-2">{form.error}</p>
 				{/if}
-				<div class="md:col-span-2 flex flex-wrap justify-end gap-3 pt-2">
+				<div class="flex flex-wrap justify-end gap-3 pt-2 md:col-span-2">
 					<Button href="/dashboard" variant="outline">Cancel</Button>
-					<Button type="submit" disabled={dashboard.organizations.length === 0}>Create Community</Button>
+					<Button type="submit" disabled={dashboard.organizations.length === 0}
+						>Create Community</Button
+					>
 				</div>
 				{#if dashboard.organizations.length === 0}
-					<p class="md:col-span-2 text-sm text-slate-500">
+					<p class="text-sm text-[var(--color-app-muted)] md:col-span-2">
 						Create an organization first before adding a community.
 					</p>
 				{/if}

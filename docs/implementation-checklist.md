@@ -33,10 +33,12 @@ Use this file as the working checklist for current repository progress. Update c
 
 ## Next Feature Track
 
-- [ ] Create the `apps/api/internal/modules/invoicing` module
-- [ ] Add invoicing routes in the API and wire them into the server
-- [ ] Add dedicated invoicing routes in the web app under the organization/community hierarchy
-- [ ] Implement recurring invoice plan management
-- [ ] Implement manual invoice creation
+- [x] Create the `apps/api/internal/modules/invoicing` module
+- [x] Add invoicing routes in the API and wire them into the server
+- [x] Add dedicated invoicing routes in the web app under the organization/community hierarchy
+- [x] Implement recurring invoice plan management
+- [x] Implement manual invoice creation
+- [x] Let community admins see overdue households for maintenance invoices
+- [x] Let residents see the next maintenance due date and highlight overdue invoices
 - [ ] Implement proof-of-payment submission and admin review flow
-- [ ] Expand seed data to include invoicing tables once invoicing flows are actually wired into the app
+- [x] Expand seed data to include invoicing tables once invoicing flows are actually wired into the app

@@ -47,16 +47,18 @@
 
 <div class="space-y-8">
 	<div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-		<div class="space-y-2">
-			<p class="text-sm font-medium tracking-[0.22em] text-[var(--color-secondary-700)] uppercase">
+		<div class="space-y-3">
+			<div
+				class="theme-hero-chip inline-flex rounded-full px-4 py-2 text-xs font-semibold tracking-[0.24em] uppercase"
+			>
 				Resident
-			</p>
-			<h1 class="text-4xl font-semibold tracking-tight text-slate-950">
+			</div>
+			<h1 class="text-4xl font-semibold tracking-tight text-[var(--color-app-text)]">
 				{data.resident
 					? `${data.resident.first_name} ${data.resident.last_name}`
 					: 'Resident details'}
 			</h1>
-			<p class="max-w-2xl text-base leading-7 text-slate-600">
+			<p class="max-w-2xl text-base leading-7 text-[var(--color-app-muted)]">
 				{#if data.resident?.user_id}
 					Review the linked account and resident record for this community member.
 				{:else}
@@ -81,10 +83,14 @@
 		</Card>
 	{:else}
 		<div class="grid gap-5 md:grid-cols-3">
-			<Card class="bg-slate-950 text-white">
+			<Card class="theme-highlight-card border-0">
 				<CardHeader>
-					<CardDescription class="text-slate-300">Resident type</CardDescription>
-					<CardTitle class="text-white">{data.resident.resident_type}</CardTitle>
+					<CardDescription class="text-[color:rgba(253,250,244,0.78)]"
+						>Resident type</CardDescription
+					>
+					<CardTitle class="text-[var(--color-app-inverse)]"
+						>{data.resident.resident_type}</CardTitle
+					>
 				</CardHeader>
 			</Card>
 			<Card>
@@ -116,7 +122,7 @@
 				</CardHeader>
 				{#if data.resident.user_id}
 					<CardContent class="space-y-3 pt-0">
-						<p class="text-sm text-slate-600">
+						<p class="text-sm text-[var(--color-app-muted)]">
 							Remove the linked account if this resident was connected to the wrong user or needs to
 							be reassigned.
 						</p>
@@ -138,7 +144,7 @@
 						</form>
 					</CardContent>
 				{:else if !hasActiveInvite}
-					<CardContent class="pt-0 text-sm text-slate-600">
+					<CardContent class="pt-0 text-sm text-[var(--color-app-muted)]">
 						Generate a new invite to link this resident to an account.
 					</CardContent>
 				{/if}
@@ -159,27 +165,31 @@
 							class="rounded-2xl border border-[var(--color-success-200)] bg-[var(--color-success-50)] p-4"
 						>
 							<p class="text-sm font-medium text-[var(--color-success-700)]">Newest invitation</p>
-							<p class="mt-2 font-mono text-sm break-all text-slate-900">
+							<p class="mt-2 font-mono text-sm break-all text-[var(--color-app-text)]">
 								{form.createdInvitation.token}
 							</p>
-							<p class="mt-3 text-sm break-all text-slate-700">
+							<p class="mt-3 text-sm break-all text-[var(--color-app-muted)]">
 								{inviteBaseUrl}/{form.createdInvitation.token}
 							</p>
 						</div>
 					{/if}
 
 					{#if data.invitations.length === 0}
-						<p class="text-sm text-slate-600">No resident invitations have been generated yet.</p>
+						<p class="text-sm text-[var(--color-app-muted)]">
+							No resident invitations have been generated yet.
+						</p>
 					{:else}
 						<div class="space-y-4">
 							{#each data.invitations as invitation}
-								<div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+								<div class="theme-soft-card rounded-2xl p-4">
 									<div class="flex flex-wrap items-start justify-between gap-3">
 										<div class="space-y-2">
-											<p class="text-xs font-medium tracking-[0.2em] text-slate-400 uppercase">
+											<p
+												class="text-xs font-medium tracking-[0.2em] text-[var(--color-app-subtle)] uppercase"
+											>
 												Token
 											</p>
-											<p class="font-mono text-[13px] break-all text-slate-900">
+											<p class="font-mono text-[13px] break-all text-[var(--color-app-text)]">
 												{invitation.token}
 											</p>
 										</div>
@@ -187,9 +197,9 @@
 											{invitation.accepted_at ? 'Accepted' : 'Pending'}
 										</Badge>
 									</div>
-									<div class="mt-4 space-y-2 text-sm text-slate-600">
+									<div class="mt-4 space-y-2 text-sm text-[var(--color-app-muted)]">
 										<p>
-											Link: <span class="break-all text-slate-900"
+											Link: <span class="break-all text-[var(--color-app-text)]"
 												>{inviteBaseUrl}/{invitation.token}</span
 											>
 										</p>
@@ -210,8 +220,8 @@
 					<CardHeader>
 						<CardTitle>Generate Invite</CardTitle>
 						<CardDescription>
-							Create a fresh resident claim token. The default expiry is seven days if you leave this
-							blank.
+							Create a fresh resident claim token. The default expiry is seven days if you leave
+							this blank.
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
@@ -255,12 +265,16 @@
 			</CardHeader>
 			<CardContent class="grid gap-5 md:grid-cols-2">
 				<div>
-					<p class="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">Email</p>
-					<p class="mt-2 text-slate-900">{displayEmail || 'No email on file'}</p>
+					<p class="text-xs font-medium tracking-[0.2em] text-[var(--color-app-subtle)] uppercase">
+						Email
+					</p>
+					<p class="mt-2 text-[var(--color-app-text)]">{displayEmail || 'No email on file'}</p>
 				</div>
 				<div>
-					<p class="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">Phone</p>
-					<p class="mt-2 text-slate-900">{displayPhone || 'No phone on file'}</p>
+					<p class="text-xs font-medium tracking-[0.2em] text-[var(--color-app-subtle)] uppercase">
+						Phone
+					</p>
+					<p class="mt-2 text-[var(--color-app-text)]">{displayPhone || 'No phone on file'}</p>
 				</div>
 			</CardContent>
 		</Card>

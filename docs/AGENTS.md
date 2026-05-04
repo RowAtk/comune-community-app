@@ -115,4 +115,5 @@ When making changes anywhere in this repo, follow this file first, then any more
 - Keep setup docs, schema notes, and environment assumptions aligned with the code.
 - Keep `docs/primer-prompt.md` aligned with the current governance and workflow docs. When new governance markdown files are added or old ones become irrelevant, update the primer references and guidance in the same change.
 - Keep `docs/implementation-checklist.md` current. When a tracked task is completed or intentionally deferred, update the checklist in the same change rather than letting it drift.
+- Treat `docs/ui-ux/ux-design-guide.md` as an active governance document for future UI work. If the design system or workflow changes materially, update the guide references and any theme docs in the same change.
 - Governance files should stay practical. If a rule no longer helps this repo move faster or safer, update it.

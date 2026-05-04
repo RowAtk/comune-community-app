@@ -209,6 +209,136 @@ SELECT
 FROM seed_households h
 CROSS JOIN (VALUES (1), (2)) AS rp(resident_position);
 
+CREATE TEMP TABLE seed_invoice_plans AS
+SELECT
+    o.seq AS organization_seq,
+    o.organization_id,
+    o.community_id,
+    pg_temp.seed_uuid('invoice-plan-' || o.seq) AS invoice_plan_id,
+    'Monthly Maintenance ' || o.community_name AS plan_name,
+    CASE
+        WHEN o.seq IN (6, 18) THEN 'PAUSED'
+        WHEN o.seq IN (10, 15) THEN 'ENDED'
+        ELSE 'ACTIVE'
+    END AS status,
+    ((o.seq - 1) % 4) + 1 AS issue_day_of_month,
+    8 + ((o.seq - 1) % 7) AS due_day_of_month,
+    (7800 + (o.seq * 225))::NUMERIC(12,2) AS default_amount,
+    DATE '2026-01-01' + (o.seq - 1) AS starts_on,
+    CASE
+        WHEN o.seq IN (10, 15) THEN DATE '2026-04-30'
+        ELSE NULL
+    END AS ends_on,
+    'Recurring maintenance dues for ' || o.community_name AS description,
+    pg_temp.seed_uuid('user-' || o.seq || '-admin') AS created_by
+FROM seed_orgs o;
+
+CREATE TEMP TABLE seed_invoice_plan_unit_overrides AS
+SELECT
+    p.organization_seq,
+    p.organization_id,
+    p.community_id,
+    p.invoice_plan_id,
+    u.unit_id,
+    (p.default_amount + CASE WHEN p.organization_seq % 2 = 0 THEN 1500 ELSE 900 END)::NUMERIC(12,2) AS amount
+FROM seed_invoice_plans p
+JOIN seed_units u
+  ON u.organization_seq = p.organization_seq
+ AND u.unit_position = 2;
+
+CREATE TEMP TABLE seed_invoices AS
+SELECT
+    pg_temp.seed_uuid('invoice-apr-' || u.organization_seq || '-' || u.unit_position) AS invoice_id,
+    u.organization_seq,
+    u.organization_id,
+    u.community_id,
+    u.unit_id,
+    p.invoice_plan_id,
+    'SCHEDULED' AS source,
+    COALESCE(o.amount, p.default_amount) AS amount,
+    CASE
+        WHEN u.unit_position = 1 AND u.organization_seq IN (1, 5, 10, 15, 20) THEN COALESCE(o.amount, p.default_amount)
+        WHEN u.organization_seq % 3 = 0 THEN ROUND(COALESCE(o.amount, p.default_amount) * 0.4, 2)
+        ELSE 0.00
+    END AS paid_amount,
+    DATE '2026-04-01' + (p.issue_day_of_month - 1) AS issued_on,
+    DATE '2026-04-01' + (p.due_day_of_month - 1) AS due_date,
+    CASE
+        WHEN u.unit_position = 1 AND u.organization_seq IN (1, 5, 10, 15, 20) THEN 'PAID'
+        WHEN u.organization_seq % 3 = 0 THEN 'PARTIAL'
+        ELSE 'OVERDUE'
+    END AS status,
+    '2026-04' AS billing_period,
+    'April 2026 maintenance dues' AS description
+FROM seed_units u
+JOIN seed_invoice_plans p
+  ON p.organization_seq = u.organization_seq
+LEFT JOIN seed_invoice_plan_unit_overrides o
+  ON o.invoice_plan_id = p.invoice_plan_id
+ AND o.unit_id = u.unit_id
+UNION ALL
+SELECT
+    pg_temp.seed_uuid('invoice-may-' || u.organization_seq || '-' || u.unit_position) AS invoice_id,
+    u.organization_seq,
+    u.organization_id,
+    u.community_id,
+    u.unit_id,
+    p.invoice_plan_id,
+    'SCHEDULED' AS source,
+    COALESCE(o.amount, p.default_amount) AS amount,
+    CASE
+        WHEN u.organization_seq IN (4, 8, 12, 16, 20) THEN ROUND(COALESCE(o.amount, p.default_amount) * 0.35, 2)
+        ELSE 0.00
+    END AS paid_amount,
+    DATE '2026-05-01' + (p.issue_day_of_month - 1) AS issued_on,
+    DATE '2026-05-01' + (p.due_day_of_month - 1) AS due_date,
+    CASE
+        WHEN u.organization_seq IN (4, 8, 12, 16, 20) THEN 'PARTIAL'
+        ELSE 'UNPAID'
+    END AS status,
+    '2026-05' AS billing_period,
+    'May 2026 maintenance dues' AS description
+FROM seed_units u
+JOIN seed_invoice_plans p
+  ON p.organization_seq = u.organization_seq
+LEFT JOIN seed_invoice_plan_unit_overrides o
+  ON o.invoice_plan_id = p.invoice_plan_id
+ AND o.unit_id = u.unit_id
+WHERE u.unit_position = 1
+  AND p.status = 'ACTIVE'
+UNION ALL
+SELECT
+    pg_temp.seed_uuid('invoice-manual-' || u.organization_seq) AS invoice_id,
+    u.organization_seq,
+    u.organization_id,
+    u.community_id,
+    u.unit_id,
+    NULL::UUID AS invoice_plan_id,
+    'MANUAL' AS source,
+    (2500 + (u.organization_seq * 120))::NUMERIC(12,2) AS amount,
+    CASE
+        WHEN u.organization_seq IN (8, 16) THEN ROUND((2500 + (u.organization_seq * 120)) * 0.5, 2)
+        ELSE 0.00
+    END AS paid_amount,
+    DATE '2026-05-05' AS issued_on,
+    CASE
+        WHEN u.organization_seq IN (4, 12, 20) THEN DATE '2026-04-28'
+        ELSE DATE '2026-05-20'
+    END AS due_date,
+    CASE
+        WHEN u.organization_seq IN (8, 16) THEN 'PARTIAL'
+        WHEN u.organization_seq IN (4, 12, 20) THEN 'OVERDUE'
+        ELSE 'UNPAID'
+    END AS status,
+    CASE
+        WHEN u.organization_seq IN (4, 12, 20) THEN '2026-04'
+        ELSE '2026-05'
+    END AS billing_period,
+    'One-time grounds recovery levy' AS description
+FROM seed_units u
+WHERE u.unit_position = 2
+  AND u.organization_seq % 2 = 0;
+
 INSERT INTO organizations (
     id,
     name,
@@ -481,5 +611,82 @@ FROM seed_residents
 WHERE unit_position = 1
   AND resident_position = 1
   AND user_id IS NOT NULL;
+
+INSERT INTO invoice_plans (
+    id,
+    organization_id,
+    community_id,
+    name,
+    plan_type,
+    status,
+    issue_day_of_month,
+    due_day_of_month,
+    default_amount,
+    starts_on,
+    ends_on,
+    description,
+    created_by
+)
+SELECT
+    invoice_plan_id,
+    organization_id,
+    community_id,
+    plan_name,
+    'MAINTENANCE',
+    status,
+    issue_day_of_month,
+    due_day_of_month,
+    default_amount,
+    starts_on,
+    ends_on,
+    description,
+    created_by
+FROM seed_invoice_plans;
+
+INSERT INTO invoice_plan_unit_overrides (
+    invoice_plan_id,
+    organization_id,
+    community_id,
+    unit_id,
+    amount
+)
+SELECT
+    invoice_plan_id,
+    organization_id,
+    community_id,
+    unit_id,
+    amount
+FROM seed_invoice_plan_unit_overrides;
+
+INSERT INTO invoices (
+    id,
+    organization_id,
+    community_id,
+    unit_id,
+    invoice_plan_id,
+    source,
+    amount,
+    paid_amount,
+    issued_on,
+    due_date,
+    status,
+    billing_period,
+    description
+)
+SELECT
+    invoice_id,
+    organization_id,
+    community_id,
+    unit_id,
+    invoice_plan_id,
+    source,
+    amount,
+    paid_amount,
+    issued_on,
+    due_date,
+    status,
+    billing_period,
+    description
+FROM seed_invoices;
 
 COMMIT;

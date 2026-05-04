@@ -8,6 +8,10 @@ The web app should feel fast, calm, and operationally trustworthy for property m
 
 ## Frontend Design Principles
 
+- Use `docs/ui-ux/ux-design-guide.md` as the default decision framework for hierarchy, grouping, pacing, and primary-action emphasis.
+- Use `docs/ui-ux/layout-patterns.md` for recurring page arrangement and screen composition decisions.
+- Use `docs/ui-ux/visual-language.md` for visual language, theme tokens, and anti-generic UI rules.
+- Use `docs/ui-ux/data-dense-screens.md` when building tables, long lists, list-detail views, logs, or other high-density operational screens.
 - Use SvelteKit’s server capabilities first. Reach for `load` functions and form actions before adding client-only data orchestration.
 - Keep route data ownership close to the route that uses it.
 - Treat the API as the source of truth for permissions, statuses, and tenant-scoped data.
@@ -65,6 +69,7 @@ The web app should feel fast, calm, and operationally trustworthy for property m
 ## Visual And Product Standards
 
 - Preserve the existing application visual language unless there is a deliberate design update.
+- Keep the app themeable. Prefer semantic theme tokens from `apps/web/src/lib/theme/palette.css` over hardcoded route-level palette values so future palette changes remain cheap.
 - Interfaces should feel professional, not generic admin-template clutter.
 - Design for dense operational use: fast scanning, clear hierarchy, and obvious next actions.
 - Statuses, warnings, and badges should map to real business meaning consistently.

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { cn } from '$lib/utils';
 
 	type Variant = 'default' | 'secondary' | 'outline' | 'ghost' | 'destructive';
@@ -31,15 +32,15 @@
 
 	const variants: Record<Variant, string> = {
 		default:
-			'bg-[var(--color-app-text)] text-white shadow-sm hover:bg-[color-mix(in_oklab,var(--color-app-text)_88%,white)] focus-visible:ring-[var(--color-secondary-500)]',
+			'bg-[var(--color-app-accent)] text-[var(--color-app-inverse)] shadow-sm hover:bg-[color-mix(in_oklab,var(--color-app-accent)_86%,black)] focus-visible:ring-[var(--color-brand-300)]',
 		secondary:
-			'bg-[var(--color-secondary-600)] text-white shadow-sm hover:bg-[var(--color-secondary-700)] focus-visible:ring-[var(--color-secondary-500)]',
+			'bg-[var(--color-secondary-600)] text-[var(--color-app-inverse)] shadow-sm hover:bg-[var(--color-secondary-700)] focus-visible:ring-[var(--color-secondary-400)]',
 		outline:
-			'border border-slate-300 bg-white text-[var(--color-app-text)] shadow-sm hover:border-slate-400 hover:bg-slate-50 focus-visible:ring-[var(--color-brand-400)]',
+			'border border-[var(--color-app-border-strong)] bg-[var(--color-app-surface-strong)] text-[var(--color-app-text)] shadow-sm hover:border-[var(--color-brand-300)] hover:bg-[var(--color-app-highlight)] focus-visible:ring-[var(--color-brand-300)]',
 		ghost:
-			'text-[var(--color-app-muted)] hover:bg-slate-100 hover:text-[var(--color-app-text)] focus-visible:ring-[var(--color-secondary-500)]',
+			'text-[var(--color-app-muted)] hover:bg-[var(--color-app-accent-soft)] hover:text-[var(--color-app-text)] focus-visible:ring-[var(--color-brand-300)]',
 		destructive:
-			'bg-[var(--color-danger-600)] text-white shadow-sm hover:bg-[var(--color-danger-700)] focus-visible:ring-[var(--color-danger-500)]'
+			'bg-[var(--color-danger-600)] text-[var(--color-app-inverse)] shadow-sm hover:bg-[var(--color-danger-700)] focus-visible:ring-[var(--color-danger-300)]'
 	};
 
 	const sizes: Record<Size, string> = {
@@ -47,10 +48,18 @@
 		sm: 'h-9 px-4',
 		lg: 'h-11 px-5 text-base'
 	};
+
+	const normalizedHref = $derived(href && href.startsWith('/') ? resolve(href) : href);
 </script>
 
 {#if href}
-	<a class={cn(base, variants[variant], sizes[size], className)} {href} aria-disabled={disabled} {onclick}>
+	<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+	<a
+		class={cn(base, variants[variant], sizes[size], className)}
+		href={normalizedHref}
+		aria-disabled={disabled}
+		{onclick}
+	>
 		{@render children?.()}
 	</a>
 {:else}

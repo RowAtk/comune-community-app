@@ -28,12 +28,12 @@
 <ResourceCollection
 	resourceName="units"
 	resourceHeading="Physical spaces"
-	resourceDescription="Use units as the foundational map of the community. Households and residents can attach to these records next."
-	creationDescription="Add a new building, apartment, lot, or physical space without leaving the listing view."
+	resourceDescription="Treat units as the physical backbone of the community. Set these up first so households, residents, and invoicing all attach to a stable map."
+	creationDescription="Add a building, apartment, lot, or other physical space without leaving the working list."
 	resourceList={data.units}
 	createForm={form}
 	groupBy={getUnitGroup}
-	resourceEmptyCreateDescription="Create the first unit to establish the physical map of this community."
+	resourceEmptyCreateDescription="Create the first unit to establish the physical map before moving into households or residents."
 >
 	{#snippet createFormBody()}
 		<div class="space-y-2">
@@ -69,7 +69,7 @@
 			<select
 				id="status"
 				name="status"
-				class="flex h-11 w-full rounded-xl border border-(--color-app-border) bg-white px-3 py-2 text-sm text-[var(--color-app-text)] shadow-sm transition outline-none focus:border-[var(--color-secondary-400)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--color-secondary-300)_35%,transparent)]"
+				class="flex h-11 w-full rounded-xl border border-(--color-app-border) bg-[var(--color-app-surface-strong)] px-3 py-2 text-sm text-[var(--color-app-text)] shadow-sm transition outline-none focus:border-[var(--color-secondary-400)] focus:ring-2 focus:ring-[color-mix(in_oklab,var(--color-secondary-300)_35%,transparent)]"
 			>
 				<option value="ACTIVE" selected={(form?.values?.status ?? 'ACTIVE') === 'ACTIVE'}
 					>ACTIVE</option

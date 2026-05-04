@@ -6,7 +6,7 @@ These credentials match the records inserted by [seed.sql](/home/rowana/projects
 
 - Organizations: `20`
 - Communities: `20`
-- Seed shape: medium-sized dataset with varied operational records across the currently implemented auth, membership, community, unit, household, resident, and invite flows
+- Seed shape: medium-sized dataset with varied operational records across the currently implemented auth, membership, community, unit, household, resident, invite, and invoicing flows
 
 The first seeded tenancy remains:
 
@@ -33,7 +33,13 @@ Other seeded organizations follow the same role-based pattern with their own dom
 - `admin@coralgardens.local`
 - `resident@sunrisemeadows.local`
 
-This seed intentionally does not populate future-facing tables such as invoicing, visitors, maintenance, notifications, audit logs, or outbox events until those flows are wired into the application.
+This seed now populates the active invoicing tables as part of the next feature slice:
+
+- `invoice_plans`
+- `invoice_plan_unit_overrides`
+- `invoices`
+
+It still intentionally does not populate future-facing tables such as visitors, maintenance requests, notifications, audit logs, outbox events, or payment-proof workflows until those flows are wired into the application.
 
 ## How to apply the seed
 

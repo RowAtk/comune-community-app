@@ -10,11 +10,6 @@
 	} = $props();
 </script>
 
-<section
-	class={cn(
-		'rounded-[calc(var(--radius-2xl)+2px)] border border-[var(--color-app-border)] bg-white shadow-[var(--shadow-card)]',
-		className
-	)}
->
+<section class={cn('theme-panel rounded-[calc(var(--radius-2xl)+2px)] border', className)}>
 	{@render children?.()}
 </section>

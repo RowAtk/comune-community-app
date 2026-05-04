@@ -20,7 +20,7 @@ This foundation is enough to begin operational invoicing because invoice and pay
 ## Recommended Feature Priority
 
 1. **Maintenance payments, manual payment recording, and invoice generation**
-   Unlock the next layer of operational value for community admins without waiting on external payment gateways. This slice should be implemented as a standalone-oriented invoicing module with recurring monthly invoice generation from community-admin plans, invoice list and detail views, manual invoice creation for ad hoc charges, manual payment entry, payment history, balance tracking, and invoice status updates. It should support community default pricing with per-unit overrides, separate issue and due days, resident proof-of-payment submission for admin review, and admin-recorded offline payments such as cash, cheque, or bank transfer. This remains an operational invoicing feature, not a payment gateway feature.
+   Unlock the next layer of operational value for community admins without waiting on external payment gateways. This slice should be implemented as a standalone-oriented invoicing module with recurring monthly invoice generation from community-admin plans, invoice list and detail views, manual invoice creation for ad hoc charges, manual payment entry, payment history, balance tracking, and invoice status updates. It should support community default pricing with per-unit overrides, separate issue and due days, resident proof-of-payment submission for admin review, admin-recorded offline payments such as cash, cheque, or bank transfer, an admin view of households that are overdue on maintenance invoices, and resident visibility into the next maintenance due date plus any overdue invoices. This remains an operational invoicing feature, not a payment gateway feature.
 
 2. **Billing audit trail and accounting visibility**
    Treat this as part of the invoicing module or the immediate follow-up slice. Invoice creation, payment posting, approval, reversal or adjustment actions, and status changes should leave an audit-friendly history. Prefer a simple historical ledger view over premature accounting-engine complexity.
@@ -54,11 +54,14 @@ Let community admins manage maintenance invoicing without online payment integra
 - Support separate invoice issue day and payment due day
 - Create invoices manually for units and residents when admins need ad hoc charges
 - View invoice lists and invoice detail
+- Let community admins see which households are overdue on maintenance invoices
 - Record manual payments
 - Track `amount`, `paid_amount`, `due_date`, `billing_period`, and `status`
 - Keep historical payment records
 - Allow resident proof-of-payment submission
 - Allow admin approval, rejection, and recording of offline payments
+- Let residents see the next maintenance due date for their household or unit
+- Highlight overdue invoices in resident-facing invoicing views
 - Surface payment method and reference or transaction details when relevant
 - Add audit-friendly history for invoicing actions
 
@@ -111,6 +114,8 @@ Use the existing schema direction around the invoicing module:
 - A community admin can configure recurring monthly maintenance invoicing with default and per-unit pricing
 - A resident or admin can record payment evidence or manual payments
 - Admins can see invoice balances and payment history
+- Community admins can quickly identify overdue households
+- Residents can see upcoming maintenance due dates and any overdue invoices
 - Invoicing actions are tenant-safe and audit-friendly
 - The next operational modules can build on the same tenant and data-model foundations
 
