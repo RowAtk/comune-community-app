@@ -46,10 +46,10 @@ Produce a migration that is:
    - add supporting trigger wiring for `updated_at`
 
 3. Name the file clearly.
-   Use a descriptive filename such as:
-   - `database/alter-residents-add-invite-token.sql`
-   - `database/create-community-visitors.sql`
-   - `database/alter-households-add-status.sql`
+   Use the numbered migration workflow in `database/migrations/`, for example:
+   - `database/migrations/004_add_community_visitors.sql`
+   - `database/migrations/005_add_households_status.sql`
+   - `database/migrations/006_add_invoicing_reviews.sql`
 
 4. Make tenant boundaries explicit in the schema.
    - include `organization_id` where operational scoping depends on it
@@ -67,8 +67,11 @@ Produce a migration that is:
    - avoid destructive rewrites when additive changes work
    - if backfill is needed, make the steps obvious
    - do not silently break seed data
+   - if the change affects active developer workflows, update `database/seed.sql`
 
 7. Update nearby schema notes when the business rule is non-obvious.
+8. Update the schema snapshot when the intended fresh-install shape changed.
+9. Update the implementation checklist if the migration completes a tracked item.
 
 ## Strong Defaults
 
@@ -87,8 +90,8 @@ Use the repo's existing commands:
 ```sh
 make db-up
 make db-init-docker
+make db-migrate-docker
 make db-seed-docker
-make db-docker-run SCRIPT=database/your-migration.sql
 ```
 
 If using a local `DATABASE_URL` instead of Docker:
@@ -106,10 +109,11 @@ make db-seed
 - Are indexes present for expected access paths?
 - Does it fit current timestamp, UUID, and soft-delete conventions?
 - Will local seed/setup still work after the change?
+- Is the migration reflected in `database/gated-community-schema.sql` when needed for fresh bootstrap?
 
 ## Done Criteria
 
-- Migration file exists in `database/` with a clear name.
+- Migration file exists in `database/migrations/` with a clear numbered name.
 - Schema change is tenant-safe and reviewable.
 - Execution path is realistic using the repo's Make targets.
 - Any subtle domain rule is reflected in adjacent schema notes.

@@ -15,3 +15,18 @@ No reason to show geenrate invite dialog when invite accepted and account linked
 
 Once an account is linked to a resident, display their user's account email and phone as the contact info on file.
 
+Roadmap
+
+Next feature
+
+- Do maintenance payments, billing invociing
+- keep track of invoices and historical accounting entries
+
+Transfer proof flow
+--------------------
+User uploads proof of payment then admin approves
+
+Admin Record Flow
+--------------------
+Admin accepts cash or cheque outside of platform and then records the payment
+

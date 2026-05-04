@@ -4,6 +4,12 @@ These credentials match the records inserted by [seed.sql](/home/rowana/projects
 
 ## Seeded tenancy
 
+- Organizations: `20`
+- Communities: `20`
+- Seed shape: medium-sized dataset with varied operational records across the currently implemented auth, membership, community, unit, household, resident, and invite flows
+
+The first seeded tenancy remains:
+
 - Organization: `Palm View Property Management`
 - Community: `Palm View Estate`
 
@@ -13,12 +19,21 @@ All seeded users share the same password:
 
 - Password: `Comune123!`
 
-User accounts:
+Example accounts for the first seeded organization:
 
 - Owner: `owner@palmview.local`
 - Org admin / community admin: `admin@palmview.local`
 - Resident: `resident@palmview.local`
 - Security: `security@palmview.local`
+- Operations / manager: `ops@palmview.local`
+
+Other seeded organizations follow the same role-based pattern with their own domain, for example:
+
+- `owner@harbourcrest.local`
+- `admin@coralgardens.local`
+- `resident@sunrisemeadows.local`
+
+This seed intentionally does not populate future-facing tables such as invoicing, visitors, maintenance, notifications, audit logs, or outbox events until those flows are wired into the application.
 
 ## How to apply the seed
 

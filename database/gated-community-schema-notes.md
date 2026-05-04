@@ -50,7 +50,7 @@ For an MVP and early production system, `VARCHAR + CHECK` is usually easier to e
 There are two different billing concerns:
 
 - **subscriptions**: the organization pays your SaaS platform
-- **invoices/payments**: residents/units pay community-related fees inside the application
+- **invoicing**: residents/units pay community-related fees inside the application
 
 They are intentionally separate.
 
@@ -427,18 +427,65 @@ Notes:
 
 ---
 
-## 15. Operational billing tables
+## 15. Operational invoicing tables
+
+These tables should be treated as the core of a standalone-oriented `invoicing` module inside the monolith. They should remain separate from `maintenance_requests`, even when the first charge type is maintenance-related.
+
+### `invoice_plans`
+Represents recurring monthly invoicing rules configured by community admins.
+
+Columns:
+- `id`
+- `organization_id`
+- `community_id`
+- `name`
+- `plan_type`
+- `status`
+- `issue_day_of_month`
+- `due_day_of_month`
+- `default_amount`
+- `starts_on`
+- `ends_on`
+- `description`
+- `settings`
+- `created_by`
+- `created_at`, `updated_at`, `deleted_at`
+
+Notes:
+- This stores the recurring invoicing rule, not the generated invoice
+- v1 should treat this as a monthly maintenance billing plan
+- `issue_day_of_month` and `due_day_of_month` are intentionally constrained to `1..28`
+- `default_amount` is the fallback amount unless a unit override exists
+
+### `invoice_plan_unit_overrides`
+Represents per-unit pricing overrides for a recurring invoicing plan.
+
+Columns:
+- `invoice_plan_id`
+- `organization_id`
+- `community_id`
+- `unit_id`
+- `amount`
+- `created_at`, `updated_at`
+
+Notes:
+- Keeps per-unit pricing relational and queryable
+- One override exists per plan and unit at most
+- If no override exists, generated invoices should use the plan `default_amount`
 
 ### `invoices`
-Represents charges to units/residents within the community.
+Represents actual invoicing records and charges to units/residents within the community.
 
 Columns:
 - `id`
 - `organization_id`
 - `community_id`
 - `unit_id`
+- `invoice_plan_id`
+- `source`
 - `amount`
 - `paid_amount`
+- `issued_on`
 - `due_date`
 - `status`
 - `billing_period`
@@ -448,6 +495,10 @@ Columns:
 Notes:
 - `amount` and `paid_amount` are validated
 - `billing_period` is a simple label like `2026-04`
+- `source` distinguishes manual invoices from scheduled invoices
+- scheduled invoices can reference `invoice_plan_id`
+- a uniqueness rule should prevent duplicate scheduled invoices for the same plan, unit, and billing period
+- these records should remain owned by the invoicing domain, not by maintenance request workflows
 
 ### `payments`
 Represents payments recorded against invoices.
@@ -458,13 +509,21 @@ Columns:
 - `community_id`
 - `invoice_id`
 - `amount`
+- `status`
 - `payment_method`
 - `transaction_id`
+- `submitted_by_user_id`
+- `recorded_by_user_id`
+- `notes`
+- `evidence`
+- `reviewed_at`
 - `payment_date`
 - `created_at`
 
 Notes:
-- Current model is invoice-linked and MVP-friendly
+- Supports both resident proof-of-payment submission and admin-recorded offline payments
+- Pending or rejected records should not affect invoice balances until approved or recorded
+- payments belong to the invoicing domain even when the charge being paid is a maintenance fee
 - later, for stronger accounting flexibility, use:
   - `invoice_items`
   - `payment_allocations`

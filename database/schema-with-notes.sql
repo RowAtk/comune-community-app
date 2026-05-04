@@ -8,7 +8,7 @@
 --   communities   -> one or more gated communities owned by an organization
 --   users         -> global login identities
 --   memberships   -> organization-level and community-level access
---   domain tables -> resident, visitor, security, maintenance, billing, etc.
+--   domain tables -> resident, visitor, security, maintenance, invoicing, etc.
 --
 -- Why this model:
 --
@@ -1092,27 +1092,149 @@ CREATE INDEX IF NOT EXISTS idx_maintenance_requests_status
 ON maintenance_requests(community_id, status);
 
 -- =========================================================
--- 15. COMMUNITY OPERATIONAL BILLING
+-- 15. COMMUNITY OPERATIONAL INVOICING
 -- =========================================================
 --
 -- IMPORTANT:
--- These tables represent billing INSIDE the product for the community.
+-- These tables represent invoicing INSIDE the product for the community.
 -- Example:
 --   - maintenance fee invoice
 --   - community dues invoice
 --   - resident payment
 --
 -- This is separate from the SaaS subscription tables above.
+-- The intended module boundary is `invoicing`, not maintenance requests.
 --
 -- Current design is MVP-friendly:
+--   recurring plan rules stay separate from generated invoices
 --   payments directly reference invoices
 --
 -- Later, for more flexible accounting, you may split into:
+--   invoice_plans
+--   invoice_plan_unit_overrides
 --   invoices
 --   invoice_items
 --   payments
 --   payment_allocations
 --
+CREATE TABLE IF NOT EXISTS invoice_plans (
+    -- Invoice plan primary key.
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    -- Tenant scope.
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+
+    -- Community scope.
+    community_id UUID NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+
+    -- Human-friendly plan name.
+    name VARCHAR(255) NOT NULL,
+
+    -- Invoicing plan category for future expansion.
+    plan_type VARCHAR(50) NOT NULL DEFAULT 'MAINTENANCE',
+
+    -- Plan lifecycle.
+    status VARCHAR(50) NOT NULL DEFAULT 'ACTIVE',
+
+    -- Day of month when invoices should be issued.
+    -- Constrained to 1..28 in v1 to avoid month-length ambiguity.
+    issue_day_of_month INTEGER NOT NULL,
+
+    -- Day of month when payment becomes due.
+    -- Also constrained to 1..28 for predictable scheduling.
+    due_day_of_month INTEGER NOT NULL,
+
+    -- Default amount charged to units without an override.
+    default_amount NUMERIC(12,2) NOT NULL,
+
+    -- First date the plan is effective.
+    starts_on DATE NOT NULL,
+
+    -- Optional end date for the plan.
+    ends_on DATE,
+
+    -- Optional operational notes/description.
+    description TEXT,
+
+    -- Flexible non-core settings.
+    settings JSONB NOT NULL DEFAULT '{}',
+
+    -- User who created the plan.
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+
+    -- Audit columns.
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ,
+
+    CONSTRAINT chk_invoice_plans_type CHECK (
+        plan_type IN ('MAINTENANCE')
+    ),
+
+    CONSTRAINT chk_invoice_plans_status CHECK (
+        status IN ('ACTIVE', 'PAUSED', 'ENDED')
+    ),
+
+    CONSTRAINT chk_invoice_plans_issue_day CHECK (
+        issue_day_of_month BETWEEN 1 AND 28
+    ),
+
+    CONSTRAINT chk_invoice_plans_due_day CHECK (
+        due_day_of_month BETWEEN 1 AND 28
+    ),
+
+    CONSTRAINT chk_invoice_plans_default_amount CHECK (
+        default_amount >= 0
+    ),
+
+    CONSTRAINT chk_invoice_plans_date_range CHECK (
+        ends_on IS NULL OR ends_on >= starts_on
+    )
+);
+
+CREATE TRIGGER update_invoice_plans_modtime
+BEFORE UPDATE ON invoice_plans
+FOR EACH ROW
+EXECUTE PROCEDURE update_updated_at_column();
+
+CREATE INDEX IF NOT EXISTS idx_invoice_plans_community_status
+ON invoice_plans(community_id, status);
+
+CREATE TABLE IF NOT EXISTS invoice_plan_unit_overrides (
+    -- One plan-specific override row per unit.
+    invoice_plan_id UUID NOT NULL REFERENCES invoice_plans(id) ON DELETE CASCADE,
+
+    -- Tenant scope repeated for operational clarity.
+    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+
+    -- Community scope repeated for operational clarity.
+    community_id UUID NOT NULL REFERENCES communities(id) ON DELETE CASCADE,
+
+    -- Unit receiving custom pricing.
+    unit_id UUID NOT NULL REFERENCES units(id) ON DELETE CASCADE,
+
+    -- Override amount for the unit.
+    amount NUMERIC(12,2) NOT NULL,
+
+    -- Audit columns.
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    PRIMARY KEY (invoice_plan_id, unit_id),
+
+    CONSTRAINT chk_invoice_plan_unit_overrides_amount CHECK (
+        amount >= 0
+    )
+);
+
+CREATE TRIGGER update_invoice_plan_unit_overrides_modtime
+BEFORE UPDATE ON invoice_plan_unit_overrides
+FOR EACH ROW
+EXECUTE PROCEDURE update_updated_at_column();
+
+CREATE INDEX IF NOT EXISTS idx_invoice_plan_unit_overrides_community_plan
+ON invoice_plan_unit_overrides(community_id, invoice_plan_id);
+
 CREATE TABLE IF NOT EXISTS invoices (
     -- Invoice primary key.
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1126,11 +1248,20 @@ CREATE TABLE IF NOT EXISTS invoices (
     -- Unit being billed.
     unit_id UUID NOT NULL REFERENCES units(id) ON DELETE RESTRICT,
 
+    -- Recurring plan source, if this invoice was generated automatically.
+    invoice_plan_id UUID REFERENCES invoice_plans(id) ON DELETE SET NULL,
+
+    -- Whether the invoice was created manually or generated from a plan.
+    source VARCHAR(50) NOT NULL DEFAULT 'MANUAL',
+
     -- Total invoice amount.
     amount NUMERIC(12,2) NOT NULL,
 
     -- Amount already paid against this invoice.
     paid_amount NUMERIC(12,2) NOT NULL DEFAULT 0.00,
+
+    -- Business-visible issue date if distinct from row creation time.
+    issued_on DATE,
 
     -- Due date for payment.
     due_date DATE NOT NULL,
@@ -1157,8 +1288,17 @@ CREATE TABLE IF NOT EXISTS invoices (
         paid_amount >= 0 AND paid_amount <= amount
     ),
 
+    CONSTRAINT chk_invoices_source CHECK (
+        source IN ('MANUAL', 'SCHEDULED')
+    ),
+
     CONSTRAINT chk_invoices_status CHECK (
         status IN ('UNPAID', 'PARTIAL', 'PAID', 'OVERDUE', 'VOID')
+    ),
+
+    CONSTRAINT chk_invoices_plan_source_consistency CHECK (
+        (source = 'MANUAL' AND invoice_plan_id IS NULL)
+        OR (source = 'SCHEDULED' AND invoice_plan_id IS NOT NULL)
     )
 );
 
@@ -1172,6 +1312,10 @@ ON invoices(unit_id);
 
 CREATE INDEX IF NOT EXISTS idx_invoices_status
 ON invoices(community_id, status);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_invoices_scheduled_plan_unit_period
+ON invoices(invoice_plan_id, unit_id, billing_period)
+WHERE source = 'SCHEDULED';
 
 CREATE TABLE IF NOT EXISTS payments (
     -- Payment primary key.
@@ -1189,12 +1333,30 @@ CREATE TABLE IF NOT EXISTS payments (
     -- Amount received.
     amount NUMERIC(12,2) NOT NULL,
 
+    -- Review lifecycle for resident-submitted proof and admin-recorded payments.
+    status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+
     -- Payment method label.
     -- Example: CASH, BANK_TRANSFER, CARD, STRIPE
     payment_method VARCHAR(50),
 
     -- External transaction/reference ID if present.
     transaction_id VARCHAR(255),
+
+    -- User who submitted the proof or payment record.
+    submitted_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+
+    -- User who directly recorded or finalized the payment.
+    recorded_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+
+    -- Optional admin/resident notes.
+    notes TEXT,
+
+    -- Flexible proof metadata for uploads or references.
+    evidence JSONB NOT NULL DEFAULT '{}',
+
+    -- When the payment was reviewed.
+    reviewed_at TIMESTAMPTZ,
 
     -- When payment was made/recorded.
     payment_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -1203,11 +1365,18 @@ CREATE TABLE IF NOT EXISTS payments (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     -- Payment amount must be positive.
-    CONSTRAINT chk_payments_amount CHECK (amount > 0)
+    CONSTRAINT chk_payments_amount CHECK (amount > 0),
+
+    CONSTRAINT chk_payments_status CHECK (
+        status IN ('PENDING', 'APPROVED', 'REJECTED', 'RECORDED')
+    )
 );
 
 CREATE INDEX IF NOT EXISTS idx_payments_invoice_id
 ON payments(invoice_id);
+
+CREATE INDEX IF NOT EXISTS idx_payments_community_status
+ON payments(community_id, status);
 
 -- =========================================================
 -- 16. COMMUNICATION

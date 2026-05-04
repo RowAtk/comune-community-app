@@ -1,11 +1,11 @@
 ---
 name: create-feature-module
-description: Create a new backend feature module for this repository's Go API when the task is to add a new domain area or resource under apps/api using the existing handler-service-repository-models pattern, tenant-safe routing, and PostgreSQL-backed persistence.
+description: Create a new backend feature module for this repository's Go API when the task is to add a new domain area or resource under apps/api using the existing handler-service-repository-models pattern, tenant-safe routing, PostgreSQL-backed persistence, and clean module boundaries for future extraction.
 ---
 
 # Create Feature Module
 
-Use this skill when adding a new API module or submodule in `apps/api`, especially for new community features such as visitors, maintenance, billing, notifications, or security records.
+Use this skill when adding a new API module or submodule in `apps/api`, especially for new community features such as visitors, maintenance, invoicing, notifications, or security records.
 
 ## Goal
 
@@ -26,6 +26,7 @@ Create the smallest production-credible module that matches current repo convent
 - Route params currently use `organizationID` and `id` for community ID in nested community routes.
 - Services sanitize input, enforce invariants, and map storage errors into typed app errors.
 - Repositories use explicit SQL with `pgx` and `pgxpool`.
+- If the feature is a plausible future standalone product, keep its logic in one strong module boundary instead of scattering business rules across adjacent modules.
 
 ## Workflow
 
@@ -39,6 +40,7 @@ Create the smallest production-credible module that matches current repo convent
 2. Decide the module placement.
    - Organization-scoped feature: `apps/api/internal/modules/<feature>`
    - Community-scoped feature: `apps/api/internal/modules/communities/<feature>`
+   - If the feature needs future extraction, prefer a top-level module boundary such as `apps/api/internal/modules/invoicing`
 
 3. Define the resource contract in `models.go`.
    Include:
@@ -83,6 +85,7 @@ Create the smallest production-credible module that matches current repo convent
 - Prefer explicit statuses over booleans for lifecycle-heavy resources.
 - Use soft delete when the resource is operationally important.
 - Keep the first slice thin; avoid over-engineering cross-module abstractions.
+- Do not bury future standalone-oriented domains such as invoicing inside unrelated modules like communities, residents, or maintenance requests.
 
 ## Suggested Route Shapes
 
@@ -109,6 +112,7 @@ cd apps/api && go test ./...
 ```
 
 If the feature includes a schema change, also ensure the migration SQL is present in `database/` and consistent with existing schema notes.
+If the feature changes seeded workflows, also update `database/seed.sql` or explicitly leave the new tables unseeded if the app does not use them yet.
 
 ## Done Criteria
 

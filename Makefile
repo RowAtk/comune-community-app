@@ -1,4 +1,4 @@
-.PHONY: help install install-api install-web api web db-up db-down db-logs db-ps db-init db-seed db-init-docker db-seed-docker db-docker-run
+.PHONY: help install install-api install-web api web db-up db-down db-logs db-ps db-init db-seed db-init-docker db-seed-docker db-migrate db-migrate-docker db-docker-run
 
 COMPOSE := docker compose -f database/docker-compose.yml
 API_DIR := apps/api
@@ -30,6 +30,8 @@ help:
 	@echo "  make db-seed      Apply the local development seed data using local psql and DATABASE_URL"
 	@echo "  make db-init-docker Apply the SQL schema using psql inside the Docker db container"
 	@echo "  make db-seed-docker Apply the local development seed using psql inside the Docker db container"
+	@echo "  make db-migrate   Apply numbered migrations using local psql and DATABASE_URL"
+	@echo "  make db-migrate-docker Apply numbered migrations using psql inside the Docker db container"
 	@echo "  make db-docker-run SCRIPT=database/file.sql"
 	@echo "  make db-docker-run database/file.sql"
 
@@ -70,6 +72,12 @@ db-init-docker:
 
 db-seed-docker:
 	$(COMPOSE) exec -T $(DB_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME) -f /dev/stdin < database/seed.sql
+
+db-migrate:
+	sh database/migrate.sh psql "$(DATABASE_URL)"
+
+db-migrate-docker:
+	sh database/migrate.sh $(COMPOSE) exec -T $(DB_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME)
 
 db-docker-run:
 	@if [ -z "$(SCRIPT)" ]; then \
